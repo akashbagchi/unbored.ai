@@ -1,0 +1,2 @@
+[console_scripts]
+ghost-onboarder = cli.main:app
