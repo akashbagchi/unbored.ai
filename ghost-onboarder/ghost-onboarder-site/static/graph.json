@@ -1,0 +1,9 @@
+{
+  "nodes": [
+    { "id": "api/server.py", "label": "server.py" },
+    { "id": "models/user.py", "label": "user.py" }
+  ],
+  "edges": [
+    { "source": "api/server.py", "target": "models/user.py" }
+  ]
+}
