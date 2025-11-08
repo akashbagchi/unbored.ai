@@ -2,11 +2,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import sys
-import typer
+import argparse
 from typing import Iterable, Dict, Any
 from scanner import scan_repo
-
-app = typer.Typer(add_completion=False)
 
 # ---------- Human-readable summary (unchanged) ----------
 def _summarize_human(data: dict) -> str:
@@ -130,27 +128,35 @@ def _write_jsonl(data: Dict[str, Any], out_path: Path | None, include: Iterable[
             stream.close()
 
 # ---------- CLI ----------
-@app.command()
-def scan(
-    repo: Path = typer.Option(..., "--repo", dir_okay=True, file_okay=False, help="Path to the repository"),
-    out: Path = typer.Option(None, "--out", help="Write output to this file (stdout if omitted)"),
-    format: str = typer.Option("human", "--format", "-f", help="Output format: human | json | jsonl"),
-    include: list[str] = typer.Option(
-        ["meta","ascii_tree","ecosystem","signals","key_files","folder_summaries","tree"],
-        "--include",
-        help="For jsonl: which sections to include (repeat flag). Defaults to all."
-    ),
-):
-    """
-    Run repository scan.
-    """
-    data = scan_repo(str(repo))
+def main():
+    parser = argparse.ArgumentParser(description="Run repository scan")
+    parser.add_argument("--repo", required=True, help="Path to the repository")
+    parser.add_argument("--out", help="Write output to this file (stdout if omitted)")
+    parser.add_argument("--format", "-f", default="human", choices=["human", "json", "jsonl"],
+                        help="Output format: human | json | jsonl")
+    parser.add_argument("--include", action="append",
+                        default=None,
+                        help="For jsonl: which sections to include (repeat flag)")
 
-    fmt = format.lower()
+    args = parser.parse_args()
+
+    # Set default includes if not specified
+    if args.include is None:
+        include = ["meta", "ascii_tree", "ecosystem", "signals", "key_files", "folder_summaries", "tree"]
+    else:
+        include = args.include
+
+    # Scan the repo
+    data = scan_repo(args.repo)
+
+    # Handle output format
+    fmt = args.format.lower()
+    out_path = Path(args.out) if args.out else None
+
     if fmt == "jsonl":
-        _write_jsonl(data, out, include)
-        if out:
-            typer.echo(f"Wrote {out}")
+        _write_jsonl(data, out_path, include)
+        if out_path:
+            print(f"Wrote {out_path}")
         return
 
     if fmt == "json":
@@ -158,11 +164,11 @@ def scan(
     else:
         text = _summarize_human(data)
 
-    if out:
-        out.write_text(text, encoding="utf-8")
-        typer.echo(f"Wrote {out}")
+    if out_path:
+        out_path.write_text(text, encoding="utf-8")
+        print(f"Wrote {out_path}")
     else:
-        typer.echo(text)
+        print(text)
 
 if __name__ == "__main__":
-    app()
+    main()
