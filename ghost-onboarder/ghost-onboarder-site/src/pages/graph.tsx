@@ -1,85 +1,97 @@
+// src/pages/graph.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import Layout from "@theme/Layout";
 
-// React Flow is browser-only; import styles at runtime
+/**
+ * A lightweight, Obsidian-style Graph View for Ghost Onboarder.
+ * Reads static/graph.json and renders it with React Flow.
+ */
 function GraphInner() {
-  const [data, setData] = useState<{nodes: any[]; edges: any[]}>({ nodes: [], edges: [] });
-  const [rf, setRf] = useState<any>(null); // reactflow dynamic import
+  const [data, setData] = useState<{ nodes: any[]; edges: any[] }>({ nodes: [], edges: [] });
+  const [rf, setRf] = useState<any>(null);
 
+  // Hooks declared once; will never be conditionally skipped
+  const [nodesState, setNodes] = useState<any[]>([]);
+  const [edgesState, setEdges] = useState<any[]>([]);
+
+  // Load JSON + ReactFlow module
   useEffect(() => {
-    (async () => {
-      // Load ReactFlow only in browser to avoid SSR issues
-      const mod = await import("reactflow");
-      await import("reactflow/dist/style.css");
-      setRf(mod);
-    })();
-    fetch("/graph.json").then(r => r.json()).then(setData);
+    fetch("/graph.json")
+      .then((r) => r.json())
+      .then(setData)
+      .catch((err) => console.error("Failed to load graph.json", err));
+
+    import("reactflow")
+      .then(async (mod) => {
+        await import("reactflow/dist/style.css");
+        setRf(mod);
+      })
+      .catch((err) => console.error("Failed to load ReactFlow", err));
   }, []);
 
-  // Simple radial layout for deterministic positions (tiny POC)
+  // Compute layout once data is available
   const { nodes, edges } = useMemo(() => {
     const N = Math.max(1, data.nodes.length);
     const radius = 220;
-    const centerX = 400;
-    const centerY = 280;
+    const cx = 400;
+    const cy = 300;
 
     const nodes = (data.nodes || []).map((n, i) => {
-      const theta = (2 * Math.PI * i) / N;
+      const angle = (2 * Math.PI * i) / N;
       return {
         id: n.id,
-        position: { x: centerX + radius * Math.cos(theta), y: centerY + radius * Math.sin(theta) },
-        data: { label: n.label || n.id },
-        style: { padding: 8, borderRadius: 12 }
+        position: {
+          x: cx + radius * Math.cos(angle),
+          y: cy + radius * Math.sin(angle),
+        },
+        data: { label: n.label },
+        style: {
+          padding: 8,
+          borderRadius: 12,
+          fontSize: 12,
+          background: "#fff",
+          border: "1px solid #ccc",
+        },
       };
     });
 
-    const edges = (data.edges || []).map((e, idx) => ({
-      id: `${e.source}-${e.target}-${idx}`,
+    const edges = (data.edges || []).map((e, i) => ({
+      id: `${e.source}-${e.target}-${i}`,
       source: e.source,
       target: e.target,
       animated: true,
-      style: { strokeWidth: 1.5 }
     }));
 
     return { nodes, edges };
   }, [data]);
 
-  // Not ready yet?
-  if (!rf) return <div style={{padding: 16}}>Loading graph…</div>;
-  const { ReactFlow, Background, Controls, MiniMap, useNodesState, useEdgesState, FitView } = rf as any;
+  // Sync computed graph with state
+  useEffect(() => {
+    setNodes(nodes);
+    setEdges(edges);
+  }, [nodes, edges]);
 
-  // Make nodes/edges editable in-state (optional for interactions)
-  const [nState, setNodes, onNodesChange] = useNodesState(nodes);
-  const [eState, setEdges, onEdgesChange] = useEdgesState(edges);
+  // Before ReactFlow loads, show fallback
+  if (!rf) return <div style={{ padding: 20 }}>Loading graph view…</div>;
 
-  useEffect(() => { setNodes(nodes); }, [nodes, setNodes]);
-  useEffect(() => { setEdges(edges); }, [edges, setEdges]);
-
-  const onNodeClick = (_: any, node: any) => {
-    // Navigate to a doc if it exists; adapt mapping to your docs routing
-    // Example: /docs/api-server.py  (replace / and .)
-    const slug = node.id.replace(/\//g, "-").replace(/\./g, "-");
-    window.open(`/docs/${slug}`, "_self"); // or route to your desired page
-  };
-
-  const proOptions = { hideAttribution: true };
+  const { ReactFlow, Background, Controls, MiniMap } = rf;
 
   return (
     <div style={{ height: "80vh", borderRadius: 12, overflow: "hidden" }}>
       <ReactFlow
-        nodes={nState}
-        edges={eState}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onNodeClick={onNodeClick}
+        nodes={nodesState}
+        edges={edgesState}
         fitView
-        proOptions={proOptions}
+        onNodeClick={(_, node) => {
+          // optional: open related doc page if it exists
+          const slug = node.id.replace(/[\/.]/g, "-");
+          window.open(`/docs/${slug}`, "_self");
+        }}
       >
         <Background />
-        <Controls />
         <MiniMap pannable zoomable />
-        <FitView />
+        <Controls />
       </ReactFlow>
     </div>
   );
@@ -87,11 +99,15 @@ function GraphInner() {
 
 export default function GraphPage() {
   return (
-    <Layout title="Graph View" description="Visual relationships between files and pages">
-      <main style={{maxWidth: 980, margin: "0 auto", padding: "2rem 1rem"}}>
-        <h1 style={{marginBottom: 12}}>Graph View</h1>
-        <p style={{marginTop: 0, opacity: 0.8}}>
-          Circles are nodes (files). Lines are relationships (imports/links). Click a node to open its doc.
+    <Layout
+      title="Graph View"
+      description="Visualize file and module relationships inside Ghost Onboarder"
+    >
+      <main style={{ maxWidth: 980, margin: "0 auto", padding: "2rem 1rem" }}>
+        <h1 style={{ marginBottom: 12 }}>Graph View</h1>
+        <p style={{ marginTop: 0, opacity: 0.8 }}>
+          Circles represent files or modules. Lines show import or dependency relationships.
+          Click a node to navigate to its documentation.
         </p>
         <BrowserOnly>{() => <GraphInner />}</BrowserOnly>
       </main>
