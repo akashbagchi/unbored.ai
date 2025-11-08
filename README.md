@@ -19,7 +19,8 @@ To test the scanner function on a repository:
 python .\cli\main.py --repo ..\tmprepo\<repo name> --out ..\outputs\scan.md
 ```
 
-4. To scan the repo and generate a jsonl file (to feed into claude), enter this command after entering the 'ghost-onboarder' folder:
+4. To scan the repo and generate a jsonl file & graph-relationship file (to feed into claude), enter this command after entering the 'ghost-onboarder' folder:
 ```
-python .\cli\main.py --repo ..\tmprepo\<repo name> --format jsonl --out ..\outputs\scan.jsonl
+python .\cli\main.py --repo ..\tmprepo\<repo name> --format jsonl --out ..\outputs\scan.jsonl --graph-out ..\outputs\graph.json
 ```
+The files are saved in your 'outputs' folder.

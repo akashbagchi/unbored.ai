@@ -4,14 +4,13 @@ from pathlib import Path
 import sys
 import typer
 from typing import Iterable, Dict, Any
-from scanner import scan_repo
+from scanner import scan_repo, build_dependency_graph
 
 app = typer.Typer(add_completion=False)
 
-# ---------- Human-readable summary (unchanged) ----------
+# ---------- Human-readable summary ----------
 def _summarize_human(data: dict) -> str:
     from textwrap import indent
-
     root = data.get("root", "")
     eco = data.get("ecosystem", {}) or {}
     sig = data.get("signals", {}) or {}
@@ -20,10 +19,8 @@ def _summarize_human(data: dict) -> str:
 
     key_files = data.get("key_files", {}) or {}
     def preview(txt: str, limit: int = 300) -> str:
-        if not txt:
-            return ""
-        if len(txt) <= limit:
-            return txt
+        if not txt: return ""
+        if len(txt) <= limit: return txt
         return txt[:limit] + "\n... (truncated)"
 
     key_list = []
@@ -65,54 +62,28 @@ def _summarize_human(data: dict) -> str:
         "## Folder Samples",
         "\n".join(folder_lines) or "—",
         "",
-        "Tip: Use --format json or --format jsonl for machine-readable output.",
+        "Tip: Use --format json | jsonl for machine-readable output. Use --graph-out to write a dependency graph.",
     ]
     return "\n".join(parts)
 
 # ---------- JSONL helpers ----------
 def _iter_jsonl_records(data: Dict[str, Any], include: Iterable[str]) -> Iterable[Dict[str, Any]]:
-    """
-    Yield NDJSON records. Each record carries a 'section' key.
-    include: subset of {"meta","ascii_tree","ecosystem","signals","key_files","folder_summaries","tree"}
-    """
     include = set(include)
-
-    # meta (root path)
     if "meta" in include:
         yield {"section": "meta", "root": data.get("root")}
-
-    # ascii_tree
     if "ascii_tree" in include:
         yield {"section": "ascii_tree", "value": data.get("ascii_tree")}
-
-    # ecosystem
     if "ecosystem" in include:
         yield {"section": "ecosystem", **(data.get("ecosystem") or {})}
-
-    # signals
     if "signals" in include:
         yield {"section": "signals", **(data.get("signals") or {})}
-
-    # key_files: one line per file (path + content)
     if "key_files" in include:
         key_files = data.get("key_files") or {}
         for path, obj in key_files.items():
-            yield {
-                "section": "key_files",
-                "path": path,
-                "content": (obj or {}).get("content", "")
-            }
-
-    # folder_summaries: one line per folder, with a minimal structure
+            yield {"section": "key_files", "path": path, "content": (obj or {}).get("content", "")}
     if "folder_summaries" in include:
         for folder in (data.get("folder_summaries") or []):
-            yield {
-                "section": "folder_summaries",
-                "path": folder.get("path"),
-                "sample_files": folder.get("sample_files") or []
-            }
-
-    # tree: one line per file entry
+            yield {"section": "folder_summaries", "path": folder.get("path"), "sample_files": folder.get("sample_files") or []}
     if "tree" in include:
         for entry in (data.get("tree") or []):
             rec = {"section": "tree"}
@@ -120,7 +91,6 @@ def _iter_jsonl_records(data: Dict[str, Any], include: Iterable[str]) -> Iterabl
             yield rec
 
 def _write_jsonl(data: Dict[str, Any], out_path: Path | None, include: Iterable[str]) -> None:
-    # choose output stream
     stream = sys.stdout if out_path is None else out_path.open("w", encoding="utf-8", newline="\n")
     try:
         for rec in _iter_jsonl_records(data, include):
@@ -140,29 +110,53 @@ def scan(
         "--include",
         help="For jsonl: which sections to include (repeat flag). Defaults to all."
     ),
+    graph_out: Path = typer.Option(
+        None,
+        "--graph-out",
+        help="Optional path to write a dependency graph JSON {nodes, edges}. If omitted and --out is given, a sibling <out>.graph.json is written."
+    ),
 ):
     """
-    Run repository scan.
+    Run repository scan and optionally emit a dependency graph.
     """
     data = scan_repo(str(repo))
 
+    # ----- write primary output -----
     fmt = format.lower()
     if fmt == "jsonl":
         _write_jsonl(data, out, include)
         if out:
             typer.echo(f"Wrote {out}")
-        return
-
-    if fmt == "json":
-        text = json.dumps(data, indent=2, ensure_ascii=False)
     else:
-        text = _summarize_human(data)
+        if fmt == "json":
+            text = json.dumps(data, indent=2, ensure_ascii=False)
+        else:
+            text = _summarize_human(data)
 
-    if out:
-        out.write_text(text, encoding="utf-8")
-        typer.echo(f"Wrote {out}")
+        if out:
+            out.write_text(text, encoding="utf-8")
+            typer.echo(f"Wrote {out}")
+        else:
+            typer.echo(text)
+
+    # ----- build and write dependency graph -----
+    graph = build_dependency_graph(str(repo))
+    # decide path
+    gpath: Path
+    if graph_out is not None:
+        gpath = graph_out
+    elif out is not None:
+        # derive sibling name from --out
+        if out.suffix:
+            gpath = out.with_suffix(out.suffix + ".graph.json")
+        else:
+            gpath = out.with_suffix(".graph.json")
     else:
-        typer.echo(text)
+        # default if nothing provided: write to repo-root-based file
+        gpath = Path("scan.graph.json")
+
+    gpath.write_text(json.dumps(graph, indent=2, ensure_ascii=False), encoding="utf-8")
+    typer.echo(f"Wrote {gpath}")
 
 if __name__ == "__main__":
     app()
