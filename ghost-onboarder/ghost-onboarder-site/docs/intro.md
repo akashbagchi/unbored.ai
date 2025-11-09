@@ -2,46 +2,56 @@
 sidebar_position: 1
 ---
 
-# Tutorial Intro
+# akashbagchi/modern-portfolio - Architecture Overview
 
-Let's discover **Docusaurus in less than 5 minutes**.
+High-Level System Design:
 
-## Getting Started
+The project follows a modern web application architecture with a separation of concerns between the frontend and backend. The frontend is built using the Nuxt.js framework, which is a Vue.js-based framework for building server-rendered and static web applications. The backend is a RESTful API built using Nuxt server handlers and a PostgreSQL database managed by the Drizzle ORM.
 
-Get started by **creating a new site**.
+Tech Stack and Rationale:
 
-Or **try Docusaurus immediately** with **[docusaurus.new](https://docusaurus.new)**.
+Frontend:
+- Nuxt.js (Vue.js framework): Provides server-side rendering, static site generation, and a modular architecture for building Vue.js applications.
+- PrimeVue: A comprehensive UI component library for Vue.js, offering a wide range of pre-built components and utilities.
+- Tailwind CSS: A utility-first CSS framework for rapidly building custom user interfaces.
+- GSAP: A popular JavaScript library for creating high-performance animations and transitions.
 
-### What you'll need
+Backend:
+- Neon PostgreSQL (serverless): A serverless PostgreSQL database solution, providing a scalable and managed database service.
+- Drizzle ORM: A TypeScript-first ORM for building type-safe database queries and migrations.
+- Nuxt server handlers: Nuxt's built-in server middleware for handling API routes and server-side logic.
 
-- [Node.js](https://nodejs.org/en/download/) version 20.0 or above:
-  - When installing Node.js, you are recommended to check all checkboxes related to dependencies.
+The chosen tech stack prioritizes performance, developer experience, and maintainability. Nuxt.js and PrimeVue provide a solid foundation for building modern, server-rendered Vue.js applications with a rich set of UI components. Tailwind CSS offers utility classes for rapid UI development, while GSAP enables advanced animations. On the backend, Neon PostgreSQL and Drizzle ORM simplify database management and ensure type safety.
 
-## Generate a new site
+Major Components and Responsibilities:
 
-Generate a new Docusaurus site using the **classic template**.
+1. **Frontend**:
+   - `components/layout`: Contains layout components like the navigation bar and notifications.
+   - `components/ui`: Holds reusable UI components such as project cards, tech stack display, and hero sections.
+   - `composables`: Provides reusable composition functions for shared logic (e.g., theme management, mobile detection).
+   - `pages`: Defines the application's routes and page components.
 
-The classic template will automatically be added to your project after you run the command:
+2. **Backend**:
+   - `server/api`: Contains API endpoints for handling CRUD operations on projects.
+   - `server/db`: Manages the database connection, schema, and migration scripts.
 
-```bash
-npm init docusaurus@latest my-website classic
-```
+Data Flow:
 
-You can type this command into Command Prompt, Powershell, Terminal, or any other integrated terminal of your code editor.
+1. **Initial Page Load**: When a user visits the application, Nuxt.js server-renders the requested page and sends the HTML to the client. This ensures optimal initial load performance.
 
-The command also installs all necessary dependencies you need to run Docusaurus.
+2. **API Requests**: The frontend components interact with the backend API to fetch and manipulate project data. These requests are made using Nuxt's `useFetch` or `useAsyncData` composables.
 
-## Start your site
+3. **Database Interaction**: The backend API handlers communicate with the PostgreSQL database through the Drizzle ORM. This includes querying, creating, updating, and deleting project data.
 
-Run the development server:
+4. **State Management**: Vue's Composition API and custom composables are used for managing application state and shared logic, such as theme preferences and mobile detection.
 
-```bash
-cd my-website
-npm run start
-```
+External Dependencies:
 
-The `cd` command changes the directory you're working with. In order to work with your newly created Docusaurus site, you'll need to navigate the terminal there.
+- **Vercel**: The application is configured for deployment on Vercel, a cloud platform for hosting static and server-rendered applications.
+- **Neon PostgreSQL**: A serverless PostgreSQL database service provided by Neon, used for storing and managing project data.
 
-The `npm run start` command builds your website locally and serves it through a development server, ready for you to view at http://localhost:3000/.
+This overview covers the high-level system design, tech stack rationale, major components, data flow, and external dependencies of the project. It aims to provide a comprehensive understanding of the application's architecture and technical decisions for a developer with 2 years of experience.
 
-Open `docs/intro.md` (this page) and edit some lines: the site **reloads automatically** and displays your changes.
+---
+
+*This documentation was automatically generated by Ghost Onboarder using Claude AI.*

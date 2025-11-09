@@ -7,7 +7,7 @@ import argparse
 from typing import Iterable, Dict, Any, List, Optional
 from scanner import scan_repo, build_dependency_graph
 
-# ---------- Human-readable summary (unchanged) ----------
+# ---------- Human-readable summary ----------
 def _summarize_human(data: dict) -> str:
     from textwrap import indent
 
@@ -121,7 +121,7 @@ def _iter_jsonl_records(data: Dict[str, Any], include: Iterable[str]) -> Iterabl
     # important_files (NEW)
     if "important_files" in include:
         for item in (data.get("important_files") or []):
-            yield {"section": "important_files", **item}
+            yield {"section": "important_files", "path": item}
 
 def _write_jsonl(data: Dict[str, Any], out_path: Path | None, include: Iterable[str]) -> None:
     stream = sys.stdout if out_path is None else out_path.open("w", encoding="utf-8", newline="\n")
