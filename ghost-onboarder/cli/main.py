@@ -2,17 +2,15 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import sys
-import typer
+from github_client import GitHubClient, keyword_filter
+import argparse
 from typing import Iterable, Dict, Any, List, Optional
+from scanner import scan_repo, build_dependency_graph
 
-from cli.scanner import scan_repo, build_dependency_graph
-from cli.github_client import GitHubClient, keyword_filter
-
-app = typer.Typer(add_completion=False)
-
-# ---------- Human-readable summary ----------
+# ---------- Human-readable summary (unchanged) ----------
 def _summarize_human(data: dict) -> str:
     from textwrap import indent
+
     root = data.get("root", "")
     eco = data.get("ecosystem", {}) or {}
     sig = data.get("signals", {}) or {}
@@ -21,8 +19,10 @@ def _summarize_human(data: dict) -> str:
 
     key_files = data.get("key_files", {}) or {}
     def preview(txt: str, limit: int = 300) -> str:
-        if not txt: return ""
-        if len(txt) <= limit: return txt
+        if not txt:
+            return ""
+        if len(txt) <= limit:
+            return txt
         return txt[:limit] + "\n... (truncated)"
 
     key_list = []
@@ -64,33 +64,64 @@ def _summarize_human(data: dict) -> str:
         "## Folder Samples",
         "\n".join(folder_lines) or "—",
         "",
-        "Tip: Use --format json | jsonl for machine-readable output. Use --graph-out to write a dependency graph.",
+        "Tip: Use --format json or --format jsonl for machine-readable output.",
     ]
     return "\n".join(parts)
 
 # ---------- JSONL helpers ----------
 def _iter_jsonl_records(data: Dict[str, Any], include: Iterable[str]) -> Iterable[Dict[str, Any]]:
+    """
+    Yield NDJSON records. Each record carries a 'section' key.
+    include: subset of {"meta","ascii_tree","ecosystem","signals","key_files","folder_summaries","tree","important_files"}
+    """
     include = set(include)
+
+    # meta (root path)
     if "meta" in include:
         yield {"section": "meta", "root": data.get("root")}
+
+    # ascii_tree
     if "ascii_tree" in include:
         yield {"section": "ascii_tree", "value": data.get("ascii_tree")}
+
+    # ecosystem
     if "ecosystem" in include:
         yield {"section": "ecosystem", **(data.get("ecosystem") or {})}
+
+    # signals
     if "signals" in include:
         yield {"section": "signals", **(data.get("signals") or {})}
+
+    # key_files: one line per file (path + content)
     if "key_files" in include:
         key_files = data.get("key_files") or {}
         for path, obj in key_files.items():
-            yield {"section": "key_files", "path": path, "content": (obj or {}).get("content", "")}
+            yield {
+                "section": "key_files",
+                "path": path,
+                "content": (obj or {}).get("content", "")
+            }
+
+    # folder_summaries: one line per folder, with a minimal structure
     if "folder_summaries" in include:
         for folder in (data.get("folder_summaries") or []):
-            yield {"section": "folder_summaries", "path": folder.get("path"), "sample_files": folder.get("sample_files") or []}
+            yield {
+                "section": "folder_summaries",
+                "path": folder.get("path"),
+                "sample_files": folder.get("sample_files") or []
+            }
+
+    # tree: one line per file entry
     if "tree" in include:
         for entry in (data.get("tree") or []):
             rec = {"section": "tree"}
             rec.update(entry or {})
             yield rec
+
+    # important_files (NEW)
+    if "important_files" in include:
+        for item in (data.get("important_files") or []):
+            yield {"section": "important_files", **item}
 
 def _write_jsonl(data: Dict[str, Any], out_path: Path | None, include: Iterable[str]) -> None:
     stream = sys.stdout if out_path is None else out_path.open("w", encoding="utf-8", newline="\n")
@@ -116,110 +147,114 @@ def _write_json_or_jsonl(records: List[Dict[str, Any]], fmt: str, out_path: Opti
         if out_path:
             out_path.write_text(text, encoding="utf-8")
         else:
-            typer.echo(text)
+            print(text)
 
 # ---------- CLI ----------
-@app.command()
-def scan(
-    # Scanner
-    repo: Path = typer.Option(..., "--repo", dir_okay=True, file_okay=False, help="Path to the repository"),
-    out: Path = typer.Option(None, "--out", help="Scanner output file (stdout if omitted)"),
-    format: str = typer.Option("human", "--format", "-f", help="Scanner format: human | json | jsonl"),
-    include: list[str] = typer.Option(
-        ["meta","ascii_tree","ecosystem","signals","key_files","folder_summaries","tree"],
-        "--include",
-        help="Scanner jsonl sections to include (repeat flag)."
-    ),
-    graph_out: Path = typer.Option(None, "--graph-out", help="Path to dependency graph JSON. If omitted & --out set, writes alongside"),
-    # GitHub issues
-    gh_repo: Optional[str] = typer.Option(
-        None, "--gh-repo",
-        help="GitHub repo in 'owner/name' form (e.g., akashbagchi/modern-portfolio). Enables closed-issues fetch."
-    ),
-    gh_token: Optional[str] = typer.Option(
-        None, "--gh-token",
-        help="GitHub token (or set env GITHUB_TOKEN). Needed for private repos / higher rate limit."
-    ),
-    issues_limit: int = typer.Option(
-        0, "--issues-limit",
-        help="How many CLOSED issues to fetch (skip PRs). 0 to skip fetching."
-    ),
-    issues_out: Optional[Path] = typer.Option(
-        None, "--issues-out",
-        help="Where to write issues output. If omitted but --out set, derives a sibling path (e.g., scan.json -> scan.issues.jsonl)."
-    ),
-    issues_format: str = typer.Option(
-        "jsonl", "--issues-format",
-        help="Issues output format: json | jsonl (default jsonl)."
-    ),
-    issues_keywords: List[str] = typer.Option(
-        ["setup","install","installation","config","configuration","env","dotenv","build","run","local","error","windows","mac","linux","docker","pnpm","yarn","npm","node","python","requirements","virtualenv","vite","nuxt","next","tailwind","eslint"],
-        "--issues-keyword",
-        help="Repeat for multiple keywords. Leave empty to disable filtering."
-    ),
-    issues_min_hits: int = typer.Option(
-        1, "--issues-min-hits",
-        help="Minimum keyword hits to include an issue when filtering. Use 1..N. Use 0 to include all."
-    ),
-):
-    """
-    Run repository scan, write dependency graph, and (optionally) fetch closed GitHub issues.
-    """
-    # ----- SCANNER -----
-    data = scan_repo(str(repo))
+def main():
+    parser = argparse.ArgumentParser(description="Run repository scan, build dependency graph, and optionally fetch GitHub issues")
+    
+    # Scanner arguments
+    parser.add_argument("--repo", required=True, help="Path to the repository")
+    parser.add_argument("--out", help="Write output to this file (stdout if omitted)")
+    parser.add_argument("--format", "-f", default="human", choices=["human", "json", "jsonl"],
+                        help="Output format: human | json | jsonl")
+    parser.add_argument("--include", action="append",
+                        default=None,
+                        help="For jsonl: which sections to include (repeat flag)")
+    parser.add_argument("--graph-out",
+                        help="Optional path to write a dependency graph JSON {nodes, edges}. If omitted and --out is given, a sibling <out>.graph.json is written.")
+    parser.add_argument("--select-top", type=int, default=0,
+                        help="Include top-N important files (uses scorer if available)")
+    
+    # GitHub issues arguments
+    parser.add_argument("--gh-repo",
+                        help="GitHub repo in 'owner/name' form (e.g., akashbagchi/modern-portfolio). Enables closed-issues fetch.")
+    parser.add_argument("--gh-token",
+                        help="GitHub token (or set env GITHUB_TOKEN). Needed for private repos / higher rate limit.")
+    parser.add_argument("--issues-limit", type=int, default=0,
+                        help="How many CLOSED issues to fetch (skip PRs). 0 to skip fetching.")
+    parser.add_argument("--issues-out",
+                        help="Where to write issues output. If omitted but --out set, derives a sibling path (e.g., scan.json -> scan.issues.jsonl).")
+    parser.add_argument("--issues-format", default="jsonl", choices=["json", "jsonl"],
+                        help="Issues output format: json | jsonl (default jsonl).")
+    parser.add_argument("--issues-keyword", action="append", 
+                        default=["setup","install","installation","config","configuration","env","dotenv","build","run","local","error","windows","mac","linux","docker","pnpm","yarn","npm","node","python","requirements","virtualenv","vite","nuxt","next","tailwind","eslint"],
+                        help="Repeat for multiple keywords. Leave empty to disable filtering.")
+    parser.add_argument("--issues-min-hits", type=int, default=1,
+                        help="Minimum keyword hits to include an issue when filtering. Use 1..N. Use 0 to include all.")
+    
+    args = parser.parse_args()
 
-    fmt = format.lower()
-    if fmt == "jsonl":
-        _write_jsonl(data, out, include)
-        if out:
-            typer.echo(f"Wrote {out}")
+    # Set default includes if not specified
+    if args.include is None:
+        include = ["meta", "ascii_tree", "ecosystem", "signals", "key_files", "folder_summaries", "tree", "important_files"]
     else:
-        # Generate main file (human or json)
-        text = json.dumps(data, indent=2, ensure_ascii=False) if fmt == "json" else _summarize_human(data)
-        if out:
-            out.write_text(text, encoding="utf-8")
-            typer.echo(f"Wrote {out}")
+        include = args.include
+
+    # ----- SCANNER -----
+    data = scan_repo(args.repo, top_n_important=(args.select_top or None))
+
+    # ----- write primary output -----
+    fmt = args.format.lower()
+    out_path = Path(args.out) if args.out else None
+
+    if fmt == "jsonl":
+        _write_jsonl(data, out_path, include)
+        if out_path:
+            print(f"Wrote {out_path}")
+    else:
+        if fmt == "json":
+            text = json.dumps(data, indent=2, ensure_ascii=False)
         else:
-            typer.echo(text)
+            text = _summarize_human(data)
+
+        if out_path:
+            out_path.write_text(text, encoding="utf-8")
+            print(f"Wrote {out_path}")
+        else:
+            print(text)
 
         # If human format, also create a JSONL sidecar file for later steps
-        if fmt == "human" and out:
-            jsonl_path = out.with_suffix(out.suffix + ".jsonl")
+        if fmt == "human" and out_path:
+            jsonl_path = out_path.with_suffix(out_path.suffix + ".jsonl")
             _write_jsonl(data, jsonl_path, include)
-            typer.echo(f"Wrote {jsonl_path}")
+            print(f"Wrote {jsonl_path}")
 
+    # ----- build and write dependency graph -----
+    graph = build_dependency_graph(args.repo)
 
-    # ----- GRAPH -----
-    graph = build_dependency_graph(str(repo))
-    if graph_out is not None:
-        gpath = graph_out
-    elif out is not None:
-        gpath = out.with_suffix(out.suffix + ".graph.json") if out.suffix else out.with_suffix(".graph.json")
+    if args.graph_out is not None:
+        gpath = Path(args.graph_out)
+    elif out_path is not None:
+        if out_path.suffix:
+            gpath = out_path.with_suffix(out_path.suffix + ".graph.json")
+        else:
+            gpath = out_path.with_suffix(".graph.json")
     else:
         gpath = Path("scan.graph.json")
     gpath.write_text(json.dumps(graph, indent=2, ensure_ascii=False), encoding="utf-8")
-    typer.echo(f"Wrote {gpath}")
+    print(f"Wrote {gpath}")
 
     # ----- GITHUB ISSUES (optional) -----
-    if gh_repo and issues_limit > 0:
-        client = GitHubClient(token=gh_token)
-        raw = client.fetch_closed_issues(repo_full_name=gh_repo, limit=issues_limit, include_body=True)
+    if args.gh_repo and args.issues_limit > 0:
+        client = GitHubClient(token=args.gh_token)
+        raw = client.fetch_closed_issues(repo_full_name=args.gh_repo, limit=args.issues_limit, include_body=True)
 
         # Filter by keywords (set issues_min_hits=0 to keep all)
-        filtered = keyword_filter(raw, issues_keywords, min_hits=max(0, issues_min_hits))
+        filtered = keyword_filter(raw, args.issues_keyword, min_hits=max(0, args.issues_min_hits))
 
         # Decide output path
-        if issues_out is not None:
-            ipath = issues_out
-        elif out is not None:
+        if args.issues_out is not None:
+            ipath = Path(args.issues_out)
+        elif out_path is not None:
             # derive from --out
-            base = out.with_suffix(out.suffix + ".issues") if out.suffix else out.with_suffix(".issues")
-            ipath = base.with_suffix(base.suffix + (".jsonl" if issues_format.lower()=="jsonl" else ".json"))
+            base = out_path.with_suffix(out_path.suffix + ".issues") if out_path.suffix else out_path.with_suffix(".issues")
+            ipath = base.with_suffix(base.suffix + (".jsonl" if args.issues_format.lower()=="jsonl" else ".json"))
         else:
-            ipath = Path("issues.jsonl" if issues_format.lower()=="jsonl" else "issues.json")
+            ipath = Path("issues.jsonl" if args.issues_format.lower()=="jsonl" else "issues.json")
 
-        _write_json_or_jsonl(filtered, issues_format, ipath)
-        typer.echo(f"Wrote {ipath}")
+        _write_json_or_jsonl(filtered, args.issues_format, ipath)
+        print(f"Wrote {ipath}")
 
 if __name__ == "__main__":
-    app()
+    main()
