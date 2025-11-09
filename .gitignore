@@ -6,3 +6,4 @@ tmprepo/
 ghost-onboarder/.venv
 ghost-onboarder/.DS_Store
 ../.DS_Store
+**/cli/test/
