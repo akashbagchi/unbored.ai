@@ -4,7 +4,7 @@ from pathlib import Path
 import sys
 import argparse
 from typing import Iterable, Dict, Any
-from scanner import scan_repo
+from scanner import scan_repo, build_dependency_graph
 
 # ---------- Human-readable summary (unchanged) ----------
 def _summarize_human(data: dict) -> str:
@@ -129,46 +129,66 @@ def _write_jsonl(data: Dict[str, Any], out_path: Path | None, include: Iterable[
 
 # ---------- CLI ----------
 def main():
-    parser = argparse.ArgumentParser(description="Run repository scan")
+    parser = argparse.ArgumentParser(description="Run repository scan and optionally emit a dependency graph")
     parser.add_argument("--repo", required=True, help="Path to the repository")
     parser.add_argument("--out", help="Write output to this file (stdout if omitted)")
-    parser.add_argument("--format", "-f", default="human", choices=["human", "json", "jsonl"],
+    parser.add_argument("--format", "-f", default="human", choices=["human", "json", "jsonl"], 
                         help="Output format: human | json | jsonl")
-    parser.add_argument("--include", action="append",
+    parser.add_argument("--include", action="append", 
                         default=None,
                         help="For jsonl: which sections to include (repeat flag)")
-
+    parser.add_argument("--graph-out", 
+                        help="Optional path to write a dependency graph JSON {nodes, edges}. If omitted and --out is given, a sibling <out>.graph.json is written.")
+    
     args = parser.parse_args()
-
+    
     # Set default includes if not specified
     if args.include is None:
         include = ["meta", "ascii_tree", "ecosystem", "signals", "key_files", "folder_summaries", "tree"]
     else:
         include = args.include
-
+    
     # Scan the repo
     data = scan_repo(args.repo)
-
-    # Handle output format
+    
+    # ----- write primary output -----
     fmt = args.format.lower()
     out_path = Path(args.out) if args.out else None
-
+    
     if fmt == "jsonl":
         _write_jsonl(data, out_path, include)
         if out_path:
             print(f"Wrote {out_path}")
-        return
-
-    if fmt == "json":
-        text = json.dumps(data, indent=2, ensure_ascii=False)
     else:
-        text = _summarize_human(data)
-
-    if out_path:
-        out_path.write_text(text, encoding="utf-8")
-        print(f"Wrote {out_path}")
+        if fmt == "json":
+            text = json.dumps(data, indent=2, ensure_ascii=False)
+        else:
+            text = _summarize_human(data)
+        
+        if out_path:
+            out_path.write_text(text, encoding="utf-8")
+            print(f"Wrote {out_path}")
+        else:
+            print(text)
+    
+    # ----- build and write dependency graph -----
+    graph = build_dependency_graph(args.repo)
+    
+    # decide path
+    if args.graph_out is not None:
+        gpath = Path(args.graph_out)
+    elif out_path is not None:
+        # derive sibling name from --out
+        if out_path.suffix:
+            gpath = out_path.with_suffix(out_path.suffix + ".graph.json")
+        else:
+            gpath = out_path.with_suffix(".graph.json")
     else:
-        print(text)
+        # default if nothing provided: write to repo-root-based file
+        gpath = Path("scan.graph.json")
+    
+    gpath.write_text(json.dumps(graph, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"Wrote {gpath}")
 
 if __name__ == "__main__":
     main()
