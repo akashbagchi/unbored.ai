@@ -1,6 +1,6 @@
 """
 Update existing Docusaurus site with Claude-generated onboarding doc
-Usage: python update_site.py <repo_path> <repo_name> [site_path]
+Usage: python generator.py <repo_path> <repo_name> [site_path]
 """
 
 import json
@@ -13,6 +13,8 @@ from cli.scanner import scan_repo, build_dependency_graph
 from cli.github_client import GitHubClient, keyword_filter
 from cli.main import _write_jsonl, _iter_jsonl_records
 from cli.generate_graph_position import generate_graph_positions
+
+LAMBDA_ENDPOINT = "https://vd03y9yw0g.execute-api.us-east-1.amazonaws.com/prod/chat"
 
 def generate_all(repo_path: str, output_dir: str = "outputs",
                     gh_repo: str | None = None, gh_token: str | None = None,
@@ -28,21 +30,23 @@ def generate_all(repo_path: str, output_dir: str = "outputs",
     # Write scan.jsonl
     scan_file = output_path / "scan.jsonl"
     with open(scan_file, 'w') as f:
-        for record in _iter_jsonl_records(scan_data, include=["meta", "ascii_tree", "ecosystem", ...]):
+        for record in _iter_jsonl_records(scan_data, include=["meta", "ascii_tree", "ecosystem", "signals", "key_files", "folder_summaries", "tree", "important_files"]):
             f.write(json.dumps(record) + '\n')
     print(f"✅ Generated {scan_file}")
 
     print("📊 2/4 Building Dependency Graph...")
     graph = build_dependency_graph(repo_path)
-    graph_file = output_path / "scanl.jsonl.graph.json"
+    graph_file = output_path / "scan.jsonl.graph.json"  # Fixed typo: was scanl.jsonl.graph.json
     graph_file.write_text(json.dumps(graph, indent=2))
     print(f"✅ Generated {graph_file}")
+
     here = Path(__file__).parent.resolve()
-    in_path  = here / "outputs/scanl.jsonl.graph.json"
+    in_path  = here / "outputs/scan.jsonl.graph.json"
     out_path = here / "./ghost-onboarder-site/static/graph_with_pos.json"
     generate_graph_positions(str(in_path), str(out_path))
     print(f"✅ Visualised graph with edges and nodes")
 
+    issues_file = None
     if gh_repo and issues_limit > 0:
         print(f"🐙 3/4 Fetching GitHub issues...")
         client = GitHubClient(token=gh_token)
@@ -58,33 +62,78 @@ def generate_all(repo_path: str, output_dir: str = "outputs",
         print("⏭️ 3/4 Skipping issues (not configured)")
 
     print("🤖 4/4 Generating documentation with Claude...")
-    # Call Claude API logic
-    onboarding_doc = generate_onboarding_doc(scan_file, gh_repo or repo_path)
+    # Pass all file paths to generate_onboarding_doc
+    onboarding_doc = generate_onboarding_doc(
+        scan_file,
+        gh_repo or repo_path,
+        graph_file=graph_file,
+        issues_file=issues_file
+    )
 
     return output_path, onboarding_doc
 
 
-def generate_onboarding_doc(scan_file, repo_name):
-    """Call Claude API"""
+def generate_onboarding_doc(scan_file, repo_name, graph_file=None, issues_file=None):
+    """
+    Call Claude API with all available data
+
+    Args:
+        scan_file: Path to scan.jsonl
+        repo_name: Repository name
+        graph_file: Optional path to graph JSON
+        issues_file: Optional path to issues JSONL
+    """
     try:
+        # Load scan data (required)
         repo_data = Path(scan_file).read_text()
 
+        # Load graph data (optional)
+        graph_data = ""
+        if graph_file and Path(graph_file).exists():
+            graph_json = json.loads(Path(graph_file).read_text())
+            num_nodes = len(graph_json.get("nodes", []))
+            num_edges = len(graph_json.get("edges", []))
+
+            # Summarize graph (don't send full JSON)
+            edges_sample = graph_json.get("edges", [])[:30]
+            graph_data = f"""
+Dependency Graph Summary:
+- {num_nodes} files analyzed
+- {num_edges} import relationships found
+
+Sample import relationships:
+{json.dumps(edges_sample, indent=2)}
+"""
+            print(f"   ✓ Including graph: {num_nodes} nodes, {num_edges} edges")
+
+        # Load issues data (optional)
+        issues_data = ""
+        if issues_file and Path(issues_file).exists():
+            issues_lines = Path(issues_file).read_text().strip().split('\n')
+            issues_data = '\n'.join(issues_lines[:20])  # Limit to 20 issues
+            print(f"   ✓ Including {len(issues_lines)} issues")
+
+        # Build payload
         payload = {
-                "repo_data": repo_data,
-                "repo_name": repo_name,
+            "repo_data": repo_data,
+            "graph_data": graph_data,
+            "issues_data": issues_data,
+            "repo_name": repo_name,
         }
 
+        print(f"   Payload size: {len(json.dumps(payload))} bytes")
+
         response = requests.post(
-                "https://vd03y9yw0g.execute-api.us-east-1.amazonaws.com/prod/chat",
-                headers={"Content-Type": "application/json"},
-                json=payload,
-                timeout=60
+            LAMBDA_ENDPOINT,
+            headers={"Content-Type": "application/json"},
+            json=payload,
+            timeout=60
         )
 
         if response.status_code == 200:
             result = response.json()
             print("✅ Onboarding doc generated")
-            return result.get("onboarding_doc", "")
+            return result.get("architecture_overview", "")
         else:
             print(f"❌ Claude API failed: {response.status_code}")
             print(response.text)
@@ -93,6 +142,7 @@ def generate_onboarding_doc(scan_file, repo_name):
     except Exception as e:
         print(f"❌ Error: {e}")
         return None
+
 
 def update_existing_site(onboarding_doc, repo_name, site_path):
     """Update existing Docusaurus site"""
@@ -140,6 +190,7 @@ sidebar_position: 1
             print(f"✅ Updated site title")
 
     return True
+
 
 def main():
     parser = argparse.ArgumentParser(description="Ghost Onboarder - Generate onboarding docs")

@@ -56,7 +56,7 @@ class GitHubClient:
             raise RuntimeError(f"GitHub error: {e.data or e.status}")
 
         # state=closed, sort by updated/created/ ??? We want most recently *closed*
-        issues = repo.get_issues(state="closed")  # PyGithub lacks sort=closed_at; we’ll slice manually later.
+        issues = repo.get_issues()  # PyGithub lacks sort=closed_at; we’ll slice manually later.
 
         out: List[IssueLite] = []
         count = 0
