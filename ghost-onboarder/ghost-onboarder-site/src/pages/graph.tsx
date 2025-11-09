@@ -37,6 +37,43 @@ function GraphClient() {
     return m;
   }, [g]);
 
+  // --- File-level coloring helpers --------------------------------------
+  // Depth based on forward slashes in the node id (e.g., "src/utils/foo.ts" => level 2)
+  const getLevel = (id: string) => {
+    if (!id) return 0;
+    // Normalize potential Windows-style backslashes if any ever appear
+    const norm = id.replace(/\\/g, "/");
+    const parts = norm.split("/").filter(Boolean);
+    // If it's a leaf file at repo root (e.g., "README.md"), depth = 0
+    return Math.max(0, parts.length - 1);
+  };
+
+  // A compact, high-contrast palette that loops if levels exceed length
+  const LEVEL_COLORS = [
+    "#4C78A8", // level 0
+    "#F58518", // level 1
+    "#54A24B", // level 2
+    "#E45756", // level 3
+    "#72B7B2", // level 4
+    "#B279A2", // level 5
+    "#FF9DA6", // level 6
+    "#9C755F", // level 7
+  ];
+
+  const colorForLevel = (lvl: number) => LEVEL_COLORS[lvl % LEVEL_COLORS.length];
+
+  // Helper to make a soft background from the stroke color
+  const withAlpha = (hex: string, alpha = 0.12) => {
+    // Accept #RRGGBB
+    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!m) return hex;
+    const r = parseInt(m[1], 16);
+    const g = parseInt(m[2], 16);
+    const b = parseInt(m[3], 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+  // ----------------------------------------------------------------------
+
   // RAF-throttled hover setter to reduce layout churn
   const hoverRaf = useRef<number | null>(null);
   const setHoverThrottled = (id: string | null) => {
@@ -51,6 +88,10 @@ function GraphClient() {
         hoveredId === n.id ||
         neighbors.get(hoveredId || "")?.has(n.id);
 
+      const level = getLevel(n.id);
+      const stroke = colorForLevel(level);
+      const bg = withAlpha(stroke, 0.14);
+
       return {
         id: n.id,
         position: { x: n.x, y: n.y },
@@ -58,13 +99,15 @@ function GraphClient() {
         style: {
           padding: 6,
           borderRadius: 12,
-          background: "#fff",
-          border: "1px solid #999",
+          background: bg,                // color by file level
+          border: `1.5px solid ${stroke}`, // color by file level
           fontSize: 11,
           opacity: isActive ? 1 : 0.15,
           transition: "opacity 120ms ease",
         },
         draggable: false,
+        // Provide a tooltip with level for quick debugging/UX
+        title: `Level ${level} • ${n.id}`,
       };
     });
   }, [g.nodes, hoveredId, neighbors]);
@@ -113,14 +156,13 @@ function GraphClient() {
         proOptions={{ hideAttribution: true }}
         onNodeMouseEnter={(_, node) => setHoverThrottled(node.id)}
         onNodeMouseLeave={() => setHoverThrottled(null)}
-        onNodeClick={(_, node) => {
-          const slug = node.id.replace(/[\/.]/g, "-");
-          window.open(`/docs/${slug}`, "_self");
-        }}
+        // Make clicking do nothing
+        onNodeClick={() => {}}
         minZoom={0.2}
         maxZoom={2}
       >
         <Background />
+        {/* MiniMap inherits node styles by default; this keeps a nice overview */}
         <MiniMap pannable zoomable />
         <Controls position="bottom-right" />
       </ReactFlow>
