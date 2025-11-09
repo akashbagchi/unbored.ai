@@ -38,38 +38,23 @@ function GraphClient() {
   }, [g]);
 
   // --- File-level coloring helpers --------------------------------------
-  // Depth based on forward slashes in the node id (e.g., "src/utils/foo.ts" => level 2)
   const getLevel = (id: string) => {
     if (!id) return 0;
-    // Normalize potential Windows-style backslashes if any ever appear
     const norm = id.replace(/\\/g, "/");
     const parts = norm.split("/").filter(Boolean);
-    // If it's a leaf file at repo root (e.g., "README.md"), depth = 0
     return Math.max(0, parts.length - 1);
   };
 
-  // A compact, high-contrast palette that loops if levels exceed length
   const LEVEL_COLORS = [
-    "#4C78A8", // level 0
-    "#F58518", // level 1
-    "#54A24B", // level 2
-    "#E45756", // level 3
-    "#72B7B2", // level 4
-    "#B279A2", // level 5
-    "#FF9DA6", // level 6
-    "#9C755F", // level 7
+    "#4C78A8", "#F58518", "#54A24B", "#E45756",
+    "#72B7B2", "#B279A2", "#FF9DA6", "#9C755F",
   ];
-
   const colorForLevel = (lvl: number) => LEVEL_COLORS[lvl % LEVEL_COLORS.length];
 
-  // Helper to make a soft background from the stroke color
   const withAlpha = (hex: string, alpha = 0.12) => {
-    // Accept #RRGGBB
     const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     if (!m) return hex;
-    const r = parseInt(m[1], 16);
-    const g = parseInt(m[2], 16);
-    const b = parseInt(m[3], 16);
+    const r = parseInt(m[1], 16), g = parseInt(m[2], 16), b = parseInt(m[3], 16);
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   };
   // ----------------------------------------------------------------------
@@ -99,14 +84,13 @@ function GraphClient() {
         style: {
           padding: 6,
           borderRadius: 12,
-          background: bg,                // color by file level
-          border: `1.5px solid ${stroke}`, // color by file level
+          background: bg,
+          border: `1.5px solid ${stroke}`,
           fontSize: 11,
           opacity: isActive ? 1 : 0.15,
           transition: "opacity 120ms ease",
         },
         draggable: false,
-        // Provide a tooltip with level for quick debugging/UX
         title: `Level ${level} • ${n.id}`,
       };
     });
@@ -119,16 +103,17 @@ function GraphClient() {
         e.source === hoveredId ||
         e.target === hoveredId ||
         (neighbors.get(hoveredId || "")?.has(e.source) &&
-          neighbors.get(hoveredId || "")?.has(e.target));
+         neighbors.get(hoveredId || "")?.has(e.target));
 
       return {
         id: `${e.source}-${e.target}-${i}`,
         source: e.source,
         target: e.target,
+        className: touchesHover ? "edge-pulse" : "edge-dim",
         style: {
           strokeWidth: 1.2,
           stroke: "#98A6B3",
-          opacity: touchesHover ? 0.8 : 0.1,
+          opacity: touchesHover ? 0.85 : 0.1,
           transition: "opacity 120ms ease",
         },
       };
@@ -144,8 +129,21 @@ function GraphClient() {
         overflow: "hidden",
         background: "#fafafa",
         borderTop: "1px solid #e9ecef",
+        position: "relative",
       }}
     >
+      {/* Edge pulse keyframes + class targeting */}
+      <style>{`
+        @keyframes edgePulse {
+          0%   { opacity: 0.55; }
+          50%  { opacity: 0.95; }
+          100% { opacity: 0.55; }
+        }
+        /* React Flow wraps edges in <g>; animate its <path> when active */
+        g.edge-pulse path { animation: edgePulse 2400ms ease-in-out infinite; }
+        g.edge-dim   path { animation: none; }
+      `}</style>
+
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -156,13 +154,11 @@ function GraphClient() {
         proOptions={{ hideAttribution: true }}
         onNodeMouseEnter={(_, node) => setHoverThrottled(node.id)}
         onNodeMouseLeave={() => setHoverThrottled(null)}
-        // Make clicking do nothing
         onNodeClick={() => {}}
         minZoom={0.2}
         maxZoom={2}
       >
         <Background />
-        {/* MiniMap inherits node styles by default; this keeps a nice overview */}
         <MiniMap pannable zoomable />
         <Controls position="bottom-right" />
       </ReactFlow>
