@@ -11,32 +11,32 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'Easy to Use',
+    title: 'AI-Generated Architecture Overview',
     Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
     description: (
       <>
-        Docusaurus was designed from the ground up to be easily installed and
-        used to get your website up and running quickly.
+        Ghost Onboarder scans your repo (code, manifests, configs) to produce a concise
+        architecture map and guided tour of the folder structure—no more tribal knowledge.
       </>
     ),
   },
   {
-    title: 'Focus on What Matters',
+    title: 'Setup Without Guesswork',
     Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
     description: (
       <>
-        Docusaurus lets you focus on your docs, and we&apos;ll do the chores. Go
-        ahead and move your docs into the <code>docs</code> directory.
+        A step-by-step setup guide assembled from Dockerfiles, scripts, and package manifests—plus
+        common pitfalls automatically mined from historical issues and PRs.
       </>
     ),
   },
   {
-    title: 'Powered by React',
+    title: 'File Dependency Graph',
     Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
     description: (
       <>
-        Extend or customize your website layout by reusing React. Docusaurus can
-        be extended while reusing the same header and footer.
+        Explore modules and services as a graph. Trace links and jump
+        straight to the most relevant docs or source files.
       </>
     ),
   },
