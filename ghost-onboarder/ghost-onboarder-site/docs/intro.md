@@ -4,55 +4,7 @@ sidebar_position: 1
 
 # akashbagchi/claude-builder-2025 - Architecture Overview
 
-High-Level System Design:
-
-The `claude-builder-2025` repository consists of two main components: `ghost-onboarder` and `ghost-onboarder-site`. The `ghost-onboarder` component is a Python package that serves as the backend, responsible for interacting with various services and generating data. The `ghost-onboarder-site` component is a React-based website built using Docusaurus, which serves as the frontend for displaying the generated data.
-
-Tech Stack:
-
-1. **Backend**:
-   - Python: The backend is written in Python, a versatile and widely-used programming language known for its simplicity and readability.
-   - Boto3 (AWS SDK for Python): Used for interacting with AWS services, such as AWS Lambda and Amazon S3.
-   - PyGitHub: A Python library for interacting with the GitHub API, enabling the retrieval of repository information.
-
-2. **Frontend**:
-   - React: A popular JavaScript library for building user interfaces, providing a component-based architecture and efficient rendering.
-   - Docusaurus: A static site generator built on top of React, designed for creating documentation websites and blogs.
-   - TypeScript: A superset of JavaScript that adds optional static typing, improving code maintainability and catching errors during development.
-
-The chosen tech stack leverages well-established and widely-adopted technologies, ensuring a robust and maintainable codebase. Python's simplicity and extensive ecosystem make it an excellent choice for the backend, while React and Docusaurus provide a modern and efficient solution for building the frontend.
-
-Major Components/Modules and Their Responsibilities:
-
-1. **ghost-onboarder**:
-   - `cli`: Contains the command-line interface for interacting with the application.
-   - `claude_client`: Handles communication with the Claude AI assistant.
-   - `github_client`: Interacts with the GitHub API to retrieve repository information.
-   - `lambda_function`: Contains the AWS Lambda function code for serverless execution.
-   - `scanner`: Responsible for scanning and analyzing repository files.
-   - `score_repo_files`: Scores and ranks repository files based on specific criteria.
-
-2. **ghost-onboarder-site**:
-   - `components`: Contains reusable React components for the website.
-   - `pages`: Defines the different pages of the website, including the homepage and the graph visualization page.
-   - `static`: Stores static assets such as images and JSON data files.
-
-Data Flow between Components:
-
-1. The `ghost-onboarder` component interacts with the GitHub API using the `github_client` module to retrieve repository information.
-2. The `scanner` module scans and analyzes the repository files, generating output files in the `outputs` directory.
-3. The `score_repo_files` module processes the scanned files and generates a ranked list of files based on specific criteria.
-4. The `claude_client` module communicates with the Claude AI assistant to generate additional information or insights based on the analyzed data.
-5. The generated data is stored in JSON files within the `static` directory of the `ghost-onboarder-site` component.
-6. The `ghost-onboarder-site` component renders the website using React and Docusaurus, displaying the generated data, including the graph visualization.
-
-External Dependencies:
-
-1. **GitHub API**: The `ghost-onboarder` component relies on the GitHub API to retrieve repository information.
-2. **Claude AI Assistant**: The `claude_client` module interacts with the Claude AI assistant to generate additional insights or information based on the analyzed data.
-3. **AWS Services (optional)**: The `lambda_function` module suggests the potential use of AWS Lambda for serverless execution, which may require additional AWS services like Amazon S3 for storage.
-
-This overview provides a high-level understanding of the system design, tech stack, major components, data flow, and external dependencies of the `claude-builder-2025` repository. It should help a developer with 2 years of experience grasp the overall structure and functionality of the project.
+None
 
 ---
 
