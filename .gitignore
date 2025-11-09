@@ -1,4 +1,8 @@
+res/
 Overview.md
+outputs/
+tmprepo/
+**/__pycache__/
 ghost-onboarder/.venv
 ghost-onboarder/.DS_Store
 ../.DS_Store
