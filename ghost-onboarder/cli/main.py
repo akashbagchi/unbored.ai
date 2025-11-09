@@ -71,7 +71,7 @@ def _summarize_human(data: dict) -> str:
 def _iter_jsonl_records(data: Dict[str, Any], include: Iterable[str]) -> Iterable[Dict[str, Any]]:
     """
     Yield NDJSON records. Each record carries a 'section' key.
-    include: subset of {"meta","ascii_tree","ecosystem","signals","key_files","folder_summaries","tree"}
+    include: subset of {"meta","ascii_tree","ecosystem","signals","key_files","folder_summaries","tree","important_files"}
     """
     include = set(include)
 
@@ -117,8 +117,12 @@ def _iter_jsonl_records(data: Dict[str, Any], include: Iterable[str]) -> Iterabl
             rec.update(entry or {})
             yield rec
 
+    # important_files (NEW)
+    if "important_files" in include:
+        for item in (data.get("important_files") or []):
+            yield {"section": "important_files", **item}
+
 def _write_jsonl(data: Dict[str, Any], out_path: Path | None, include: Iterable[str]) -> None:
-    # choose output stream
     stream = sys.stdout if out_path is None else out_path.open("w", encoding="utf-8", newline="\n")
     try:
         for rec in _iter_jsonl_records(data, include):
@@ -132,29 +136,30 @@ def main():
     parser = argparse.ArgumentParser(description="Run repository scan and optionally emit a dependency graph")
     parser.add_argument("--repo", required=True, help="Path to the repository")
     parser.add_argument("--out", help="Write output to this file (stdout if omitted)")
-    parser.add_argument("--format", "-f", default="human", choices=["human", "json", "jsonl"], 
+    parser.add_argument("--format", "-f", default="human", choices=["human", "json", "jsonl"],
                         help="Output format: human | json | jsonl")
-    parser.add_argument("--include", action="append", 
+    parser.add_argument("--include", action="append",
                         default=None,
                         help="For jsonl: which sections to include (repeat flag)")
-    parser.add_argument("--graph-out", 
+    parser.add_argument("--graph-out",
                         help="Optional path to write a dependency graph JSON {nodes, edges}. If omitted and --out is given, a sibling <out>.graph.json is written.")
-    
+    parser.add_argument("--select-top", type=int, default=0,
+                        help="Include top-N important files (uses scorer if available)")
     args = parser.parse_args()
-    
+
     # Set default includes if not specified
     if args.include is None:
-        include = ["meta", "ascii_tree", "ecosystem", "signals", "key_files", "folder_summaries", "tree"]
+        include = ["meta", "ascii_tree", "ecosystem", "signals", "key_files", "folder_summaries", "tree", "important_files"]
     else:
         include = args.include
-    
-    # Scan the repo
-    data = scan_repo(args.repo)
-    
+
+    # Scan the repo (NEW: pass top_n_important)
+    data = scan_repo(args.repo, top_n_important=(args.select_top or None))
+
     # ----- write primary output -----
     fmt = args.format.lower()
     out_path = Path(args.out) if args.out else None
-    
+
     if fmt == "jsonl":
         _write_jsonl(data, out_path, include)
         if out_path:
@@ -164,29 +169,26 @@ def main():
             text = json.dumps(data, indent=2, ensure_ascii=False)
         else:
             text = _summarize_human(data)
-        
+
         if out_path:
             out_path.write_text(text, encoding="utf-8")
             print(f"Wrote {out_path}")
         else:
             print(text)
-    
+
     # ----- build and write dependency graph -----
     graph = build_dependency_graph(args.repo)
-    
-    # decide path
+
     if args.graph_out is not None:
         gpath = Path(args.graph_out)
     elif out_path is not None:
-        # derive sibling name from --out
         if out_path.suffix:
             gpath = out_path.with_suffix(out_path.suffix + ".graph.json")
         else:
             gpath = out_path.with_suffix(".graph.json")
     else:
-        # default if nothing provided: write to repo-root-based file
         gpath = Path("scan.graph.json")
-    
+
     gpath.write_text(json.dumps(graph, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"Wrote {gpath}")
 
