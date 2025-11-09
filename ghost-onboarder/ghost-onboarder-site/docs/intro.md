@@ -2,158 +2,104 @@
 sidebar_position: 1
 ---
 
-# akashbagchi/modern-portfolio - Architecture Overview
+# akashbagchi/claude-builder-2025 - Architecture Overview
 
-Here's the documentation for the `akashbagchi/modern-portfolio` repository:
+# Understanding the Ghost Onboarder Codebase
 
-# Modern Portfolio Website
+## Understanding the Codebase
 
-A sophisticated, minimalist portfolio website showcasing modern web development practices. Built with Nuxt 3 and PrimeVue, this project demonstrates expertise in contemporary front-end development while maintaining a focus on performance, accessibility, and user experience.
+Ghost Onboarder follows a pipeline-driven architecture, where discrete processing stages transform a repository into documentation. The codebase is split between a Python-based analysis pipeline and a React-based documentation site, connected through JSONL data files.
 
-## Technical Overview
+The core architectural pattern is a multi-stage processor where each stage has a single responsibility:
+1. Repository scanning (`cli/scanner.py`)
+2. Content analysis (`cli/score_repo_files.py`) 
+3. AI processing (`cli/claude_client.py`)
+4. Site generation (`ghost-onboarder-site/`)
 
-### Core Features
+The most important concept to grasp is the data flow between stages - each processor expects specific JSONL formats from the previous stage. Changes to output formats require coordinated updates across multiple files.
 
-- 🎨 Sleek, minimalist design with dark mode support
-- 📱 Mobile-first, responsive layout
-- ⚡️ Server-side rendering (SSR) for optimal performance
-- 🔒 Type-safe development with TypeScript
-- 🏗️ Component-driven architecture
-- 🌐 REST API integration with Neon PostgreSQL
-- 🕰️ Smooth transitions and animations
-- 🌺 Rich interactive components using PrimeVue
+## Code Organization & Flow
 
-### Technology Stack
+**`cli/` Directory**
+- **Purpose**: Contains the core repository analysis pipeline
+- **Key files**: 
+  - `scanner.py` - Walks repository structure and extracts metadata
+  - `score_repo_files.py` - Analyzes file importance and relationships
+  - `claude_client.py` - Handles AI processing via AWS Lambda
+- **When you'll touch this**: Adding new file analysis capabilities or modifying the scanning logic
+- **Gotchas**: `scanner.py` and `score_repo_files.py` are tightly coupled - changes to scanning output require updates to scoring logic
 
-#### Frontend
+**`outputs/` Directory**
+- **Purpose**: Stores intermediate processing results between pipeline stages
+- **Key files**:
+  - `scan.jsonl` - Raw repository scan data
+  - `scan.jsonl.graph.json` - Processed dependency relationships
+- **When you'll touch this**: Debugging pipeline issues or modifying data formats
+- **Gotchas**: Files are overwritten on each run - back up if needed for debugging
 
-- **Framework**: Nuxt 3 (v3.14)
-- **UI Components**: PrimeVue 4.2
-- **Styling**:
-  - Tailwind CSS 3.4
-  - CSS3 with custom animations
-  - PrimeIcons for iconography
-- **State Management**: Vue 3 Composition API with custom composables
-- **Motion**: GSAP for advanced animations
+**`ghost-onboarder-site/` Directory**
+- **Purpose**: Docusaurus-based documentation site that displays analysis results
+- **Key files**:
+  - `src/pages/graph.tsx` - Interactive repository visualization
+  - `docs/intro.md` - AI-generated architecture overview
+- **When you'll touch this**: Customizing documentation layout or visualization
+- **Gotchas**: Graph visualization expects specific JSON schema from `generate_graph_position.py`
 
-#### Backend
+## Data Flow Paths
 
-- **Database**: Neon PostgreSQL (serverless)
-- **ORM**: Drizzle ORM
-- **API**: Nuxt server handlers
-- **Edge Config**: Vercel Edge Config for runtime configuration
+**Repository Analysis Pipeline**
+1. `generator.py` invokes `cli/main.py` with repository path
+2. `scanner.py` walks files and outputs to `outputs/scan.jsonl`
+3. `score_repo_files.py` analyzes importance and writes `scan.issues.jsonl`
+4. `generate_graph_position.py` creates visualization data in `scan.jsonl.graph.json`
+5. `claude_client.py` processes scan data through Lambda for documentation
+6. Generated content updates `ghost-onboarder-site/docs/intro.md`
 
-#### Development Tools
+**Documentation Site Updates**
+1. Site watches `docs/intro.md` for content changes
+2. `src/pages/graph.tsx` loads `graph_with_pos.json` on render
+3. Docusaurus rebuilds affected pages automatically
+4. Changes appear in development server or production build
 
-- **Package Manager**: pnpm 9.15
-- **Type Checking**: TypeScript 5.7
-- **Code Quality**:
-  - ESLint 9.16 with @antfu/eslint-config
-  - Prettier 3.4
-  - Husky for Git hooks
-- **Build Tools**: Vite (via Nuxt)
+## Key Architectural Decisions
 
-## Project Structure
+**Lambda vs Direct API**
+- Uses AWS Lambda to proxy Claude API calls for several reasons:
+- Keeps API keys secure and centralized
+- Enables request/response transformation
+- Provides usage monitoring and quotas
+- You'll find Lambda logic in `cli/lambda_function.py`
 
-```
-modern-portfolio/
-├── components/           # Reusable Vue components
-│   ├── layout/          # Layout components (Navbar, notifications)
-│   └── ui/              # UI components (ProjectCard, TechStack, etc.)
-├── composables/         # Shared composition logic
-├── layouts/             # Page layouts
-├── pages/              # Route pages
-├── server/             # Backend API and database
-│   ├── api/            # API endpoints
-│   └── db/             # Database configuration and schema
-├── public/             # Static assets
-└── types/              # TypeScript type definitions
-```
+**JSONL vs JSON**
+- JSONL chosen for pipeline data format because:
+- Supports streaming processing of large repos
+- Each line is valid JSON (easier debugging)
+- Natural fit for file-by-file analysis
+- See format examples in `outputs/scan.jsonl`
 
-## Key Features
+**Docusaurus Integration**
+- Updates existing site rather than generating from scratch:
+- Preserves custom styling and configuration
+- Allows mixing generated and manual content
+- Enables incremental updates
+- Integration happens in `ghost-onboarder-site/docs/`
 
-### Responsive Design
+**Graph Visualization**
+- Uses React Flow for repository visualization:
+- Interactive node dragging and zooming
+- Custom node rendering capabilities
+- Force-directed layout algorithm
+- Implementation in `src/pages/graph.tsx`
 
-- Mobile-first approach with adaptive layouts
-- Custom mobile navigation with smooth transitions
-- Responsive image handling with optimized loading
+The codebase emphasizes pipeline modularity while maintaining strict data contracts between stages. When making changes, you'll need to consider impacts across the entire flow from scanning through visualization.
 
-### User Experience
+Common pain points include:
+- Coordinating changes to JSONL formats across multiple files
+- Debugging Lambda integration issues
+- Managing state between pipeline runs
+- Customizing Docusaurus without breaking generated content
 
-- Dark mode with system preference detection
-- Smooth page transitions
-- Progressive loading states
-- Mobile-specific alerts and notifications
-
-### Performance Optimization
-
-- Server-side rendering for initial page loads
-- Optimized asset loading
-- Efficient state management with Vue 3 Composition API
-- Smart caching strategies for API calls
-
-### Developer Experience
-
-- Type-safe development with TypeScript
-- Modular component architecture
-- Custom composables for shared logic
-- Consistent code style with ESLint and Prettier
-
-## Getting Started
-
-```bash
-# Install dependencies
-pnpm install
-
-# Start development server
-pnpm dev
-
-# Build for production
-pnpm build
-
-# Start production server
-pnpm preview
-
-# Run linting
-pnpm lint
-
-# Format code
-pnpm format
-```
-
-## Database Operations
-
-```bash
-# Generate migrations
-pnpm db:generate
-
-# Run migrations
-pnpm db:migrate
-
-# Push schema changes
-pnpm db:push
-
-# Open database UI
-pnpm db:studio
-```
-
-## Environment Configuration
-
-The application uses various environment variables for configuration:
-
-- `DATABASE_URL`: Neon PostgreSQL connection string
-- `ADMIN_SECRET`: Admin authentication secret
-- `VERCEL_ENV`: Deployment environment
-- `ENABLE_ADMIN`: Feature flag for admin functionality
-
-## Deployment
-
-The application is configured for deployment on Vercel with:
-
-- Automatic preview deployments for PRs
-- Environment-specific builds
-- Edge configuration support
-- Serverless PostgreSQL integration
+Focus on understanding the data flow first - most bugs stem from mismatched expectations between pipeline stages rather than issues within individual components.
 
 ---
 
