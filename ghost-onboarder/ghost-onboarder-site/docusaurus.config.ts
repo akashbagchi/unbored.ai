@@ -3,9 +3,9 @@ import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
-  title: 'akashbagchi/modern-portfolio Documentation',
-  tagline: 'Auto-generated documentation for akashbagchi/modern-portfolio',
-  favicon: 'img/favicon.ico',
+  title: 'unbored - Claude Builder HackASU',
+  tagline: 'Take the boredom out of onboarding',
+  favicon: 'img/hackasu.png',
 
   // ↓ Basic site URL setup for local/demo hosting
   url: 'http://localhost:3000',
