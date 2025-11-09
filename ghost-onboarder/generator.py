@@ -133,7 +133,7 @@ Sample import relationships:
         if response.status_code == 200:
             result = response.json()
             print("✅ Onboarding doc generated")
-            return result.get("onboarding_doc", "")
+            return result.get("architecture_overview", "")
         else:
             print(f"❌ Claude API failed: {response.status_code}")
             print(response.text)

@@ -12,9 +12,9 @@ client = boto3.client("bedrock-runtime", region_name=REGION)
 def lambda_handler(event, context):
     try:
         body = json.loads(event.get("body") or "{}")
-        repo_data = body.get("repo_data", "")               # scan .jsonl content
-        graph_data = body.get("graph_data", "")            # dependency graph
-        issues_data = body.get("issues_data", "")          # GitHub issues
+        repo_data = body.get("repo_data", "")
+        graph_data = body.get("graph_data", "")
+        issues_data = body.get("issues_data", "")
         repo_name = body.get("repo_name", "repository")
 
         if not repo_data:
@@ -22,13 +22,32 @@ def lambda_handler(event, context):
 
         prompt = build_comprehensive_prompt(repo_name, repo_data, graph_data, issues_data)
 
+        # ADD DEBUG: Check prompt size
+        print(f"Prompt size: {len(prompt)} chars")
+
         resp = client.converse(
             modelId=MODEL_ID,
             messages=[{"role": "user", "content": [{"text": prompt}]}],
             inferenceConfig={"maxTokens": 4000, "temperature": 0.3},
         )
 
+        # ADD DEBUG: Print full response
+        print(f"Full response: {json.dumps(resp, indent=2)}")
+
+        # FIX: Check if response has content
+        if "output" not in resp or "message" not in resp["output"]:
+            print(f"ERROR: Invalid response structure: {resp}")
+            return {
+                "statusCode": 500,
+                "body": json.dumps({"error": "Invalid API response", "response": str(resp)})
+            }
+
         output = "".join(c.get("text","") for c in resp["output"]["message"]["content"])
+
+        # ADD DEBUG: Check output length
+        print(f"Output length: {len(output)} chars")
+        print(f"First 500 chars: {output[:500]}")
+
         return {
             "statusCode": 200,
             "headers": {
@@ -37,10 +56,12 @@ def lambda_handler(event, context):
             },
             "body": json.dumps({
                 "architecture_overview": output,
-                # Could split into multiple docs (pages) later
             }),
         }
     except Exception as e:
+        print(f"EXCEPTION: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return {
             "statusCode": 500,
             "headers": {"Access-Control-Allow-Origin": "*"},
@@ -106,22 +127,11 @@ Create TWO additional sections:
    - Good first issues for new contributors
 """
 
+    if len(base_prompt) > 10000:
+        print(f"WARNING: Prompt size ({len(base_prompt)}) exceeds 10000 chars, truncating repo data")
+        repo_data = repo_data[:50000]
+        # Rebuild prompt with truncated data
+        base_prompt = f"""Generate documentation for `{repo_name}`...
+        {repo_data}"""
+
     return base_prompt
-
-# For local testing
-if __name__ == "__main__":
-    import sys
-
-    # Mock event for testing
-    test_event = {
-        "body": json.dumps({
-            "repo_data": "...",  # Would load from scan.jsonl
-            "graph_data": "...",  # Would load from graph.json
-            "issues_data": "...",  # Would load from issues.jsonl
-            "repo_name": "test/repo"
-        })
-    }
-
-    result = lambda_handler(test_event, None)
-    print(json.dumps(json.loads(result["body"]), indent=2))
-
