@@ -2,9 +2,9 @@
 sidebar_position: 1
 ---
 
-# akashbagchi/claude-builder-2025 - Architecture Overview
+# akashbagchi/modern-portfolio - Architecture Overview
 
-None
+
 
 ---
 
