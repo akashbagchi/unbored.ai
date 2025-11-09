@@ -18,21 +18,24 @@ def lambda_handler(event, context):
         if not repo_data:
             return { "statusCode": 400, "body": "Missing 'repo_data'." }
 
-        prompt = f"""You are a senior developer and project lead with 8+ years of experience. Based on the repository `{repo_name}`, Generate a comprehensive overview (1000 words) covering:
-                        - High level system design
-                        - Tech stack and why it's chosen
-                        - Major components/modules and their responsibilities
-                        - Data flow between components
-                        - External dependencies
-                    Write for a developer with 2 years experience.
+        prompt = f"""Generate an architectural overview for `{repo_name}`:
 
-                    AVOID:
-                        - Unnecessary fluff/decorative words singing the praises of certain design decisions, write purely to educate and inform
-                        - Unnecessarily verbose explanations that don't capture technical nuance meaningful to a contributing junior developer
-                        - Mentioning potential extra uses for certain modules, libraries that aren't used or are only used indirectly (for example by a framework, but not directly chosen by the developer), etc.
+                    STRUCTURE (1000-1200 words max)
+                    1. System Design: Core architecture pattern, layer organization
+                    2. Tech Stack: Primary languages/frameworks and their key roles
+                    3. Components: Main modules with specific responsibilities
+                    4. Data Flow: Request/response paths, state management
+                    5. Dependencies: External services/libraries directly used by developers
+
+                    RULES:
+                    - Focus on implementation details developers need to contribute
+                    - Skip basic technology definitions (React, TypeScript, etc.)
+                    - Omit meta-commentary about this overview
+                    - Only mention libraries explicitly imported/configured by developers
+                    - Use technical terminology appropriate for 2+ years experience
 
                     Repository Analysis:
-                    {repo_data} """
+                    {repo_data}"""
 
         resp = client.converse(
             modelId=MODEL_ID,
