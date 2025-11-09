@@ -12,7 +12,8 @@ python generator.py ../path/to/repo username/repo-name
 
 # 2. Start the documentation site
 cd ghost-onboarder-site
-npm start
+npm run build
+npm run serve
 
 # 3. View at http://localhost:3000
 ```
@@ -118,7 +119,8 @@ python cli/claude_client.py outputs/scan.jsonl johndoe/my-project
 #### Start Documentation Site
 ```bash
 cd ghost-onboarder-site
-npm start
+npm run build
+npm run serve
 ```
 
 ## 🔧 Configuration
@@ -192,6 +194,7 @@ npm run start
 
 # Build for production
 npm run build
+npm run serve
 ```
 
 ### Adding New Scanners
