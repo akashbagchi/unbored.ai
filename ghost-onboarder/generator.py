@@ -30,7 +30,7 @@ def generate_all(repo_path: str, output_dir: str = "outputs",
     # Write scan.jsonl
     scan_file = output_path / "scan.jsonl"
     with open(scan_file, 'w') as f:
-        for record in _iter_jsonl_records(scan_data, include=["meta", "ascii_tree", "ecosystem", "signals", "key_files", "folder_summaries", "tree", "important_files"]):
+        for record in _iter_jsonl_records(scan_data, include=["meta", "ascii_tree", "ecosystem", "signals", "key_files", "folder_summaries", "tree"]):
             f.write(json.dumps(record) + '\n')
     print(f"✅ Generated {scan_file}")
 

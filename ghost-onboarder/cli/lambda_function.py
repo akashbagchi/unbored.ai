@@ -1,11 +1,11 @@
-"""Calls a public lamba endpoint which is configured to hit Bedrock API configured with our Claude model."""
+"""Calls a public lambda endpoint which is configured to hit Bedrock API configured with our Claude model."""
 
 import json
 import boto3
 import os
 
 REGION = "us-east-1"
-MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
+MODEL_ID = "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
 
 client = boto3.client("bedrock-runtime", region_name=REGION)
 
@@ -28,7 +28,7 @@ def lambda_handler(event, context):
         resp = client.converse(
             modelId=MODEL_ID,
             messages=[{"role": "user", "content": [{"text": prompt}]}],
-            inferenceConfig={"maxTokens": 4000, "temperature": 0.3},
+            inferenceConfig={"maxTokens": 8192, "temperature": 0.5},
         )
 
         # ADD DEBUG: Print full response
@@ -71,67 +71,94 @@ def lambda_handler(event, context):
 def build_comprehensive_prompt(repo_name, repo_data, graph_data, issues_data):
     """Build prompt that incorporates all available data"""
 
-    # Base architecture overview section
-    base_prompt = f"""Generate documentation for `{repo_name}` using the data below.
+    base_prompt = f"""You are writing ONBOARDING DOCUMENTATION for a new developer joining the `{repo_name}` project.
 
-=== ARCHITECTURE OVERVIEW ===
-Create a technical overview (1500 words):
+CRITICAL: This is NOT a README. Do NOT include:
+- Installation steps
+- "How to run" instructions
+- Contributing guidelines
+- License/demo sections
+- Feature lists or "what this project does"
 
-1. System Design: Core architecture pattern, layer organization
-2. Tech Stack: Primary languages/frameworks and their roles
-3. Components: Main modules with specific responsibilities
-4. Data Flow: Request/response paths, state management
-5. Dependencies: External services/libraries used directly
+Instead, write for a developer who has ALREADY cloned and run the project, and needs to understand HOW TO WORK IN THIS CODEBASE.
 
-RULES:
-- Focus on implementation details for contributing developers
-- Skip basic tech definitions (React, TypeScript, etc.)
-- No meta-commentary about this overview
-- Only mention explicitly imported/configured libraries
-- Technical terminology for 2+ years experience
+=== REQUIRED STRUCTURE ===
 
-Repository Structure:
+## Understanding the Codebase
+
+[2-3 paragraphs explaining the mental model]
+- What architectural pattern drives this project's organization?
+- What's the "shape" of the code - monolith, microservices, layered?
+- What are the 2-3 most important concepts to grasp?
+
+## Code Organization & Flow
+
+[For each major directory/module, write 1-2 paragraphs answering:]
+
+**[Directory/Module Name]**
+- **Purpose in THIS project**: Why does this exist here specifically? What problem does it solve for THIS codebase?
+- **Key files and their relationships**: Name 2-4 critical files and explain how they interact
+- **When you'll touch this**: What kinds of tasks require modifying these files?
+- **Gotchas**: Any non-obvious dependencies or coupling?
+
+Example format:
+"The `cli/` directory contains the repository scanning pipeline. `main.py` orchestrates the scan by calling `scanner.py` which walks the file tree and extracts metadata. When adding support for a new file type, you'll modify `scanner.py`'s `process_file()` method AND update the output schema in `main.py`. Note that `claude_client.py` expects the exact JSONL format from `main.py` - changing one requires updating the other."
+
+## Data Flow Paths
+
+[Trace 2-3 concrete scenarios through the codebase]
+"When a user runs `generator.py` on a repository:
+1. `generator.py` calls `cli/main.py` which returns JSONL to `outputs/scan.jsonl`
+2. That JSONL is read and sent to the Lambda endpoint in `claude_client.py`
+3. The Lambda response updates `ghost-onboarder-site/docs/intro.md`
+4. Docusaurus automatically rebuilds the site"
+
+## Key Architectural Decisions
+
+[Explain WHY things are built this way]
+- Why Lambda instead of direct API calls?
+- Why JSONL instead of JSON?
+- Why update existing Docusaurus vs generate from scratch?
+
+Use this repository structure:
 {repo_data}
 """
 
-    # Add dependency graph section if available
     if graph_data:
         base_prompt += f"""
 
-=== MODULE DEPENDENCIES ===
-Dependency graph showing import relationships:
+## Module Dependency Map
+
 {graph_data}
 
-Add a "Module Dependencies" section (200 words) explaining:
-- Key dependency clusters (highly connected modules)
-- Core vs peripheral modules
-- Circular dependencies if any
+[150 words explaining the import graph]
+- Which modules are central hubs? (imported by many others)
+- Which are leaf nodes? (import but aren't imported)
+- Any circular dependencies that new devs should know about?
 """
 
-    # Add issues section if available
     if issues_data:
         base_prompt += f"""
 
-=== KNOWN ISSUES & CONTRIBUTIONS ===
-Recent closed issues (setup/config related):
+## Common Pain Points
+
 {issues_data}
 
-Create TWO additional sections:
-
-1. "Common Setup Issues" (300 words):
-   - Top 3-5 setup problems from issues
-   - Brief solutions/workarounds
-
-2. "Contribution Opportunities" (200 words):
-   - Patterns in issues suggesting areas needing improvement
-   - Good first issues for new contributors
+[Analyze the closed issues and write:]
+- What do new contributors struggle with most?
+- What parts of the codebase generate the most confusion?
+- What would you warn a new dev about based on these issues?
 """
 
-    if len(base_prompt) > 10000:
-        print(f"WARNING: Prompt size ({len(base_prompt)}) exceeds 10000 chars, truncating repo data")
-        repo_data = repo_data[:50000]
-        # Rebuild prompt with truncated data
-        base_prompt = f"""Generate documentation for `{repo_name}`...
-        {repo_data}"""
+    base_prompt += """
+
+WRITING RULES:
+- Use actual file paths from the repository structure
+- Reference specific functions/classes you see in the structure
+- Write in second person ("you'll modify X when...")
+- Be opinionated about the architecture ("This uses X pattern because...")
+- 1500-2000 words total
+- NO installation/setup/contributing sections
+"""
 
     return base_prompt
