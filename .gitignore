@@ -6,4 +6,9 @@ tmprepo/
 ghost-onboarder/.venv
 ghost-onboarder/.DS_Store
 ../.DS_Store
+<<<<<<< HEAD
 **/cli/test/
+=======
+ghost-onboarder/ghost-onboarder-site/node_modules
+ghost-onboarder-site/static/graph_with_pos.json
+>>>>>>> main
