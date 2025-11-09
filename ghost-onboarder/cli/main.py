@@ -2,10 +2,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import sys
-from github_client import GitHubClient, keyword_filter
+from cli.github_client import GitHubClient, keyword_filter
 import argparse
 from typing import Iterable, Dict, Any, List, Optional
-from scanner import scan_repo, build_dependency_graph
+from cli.scanner import scan_repo, build_dependency_graph
 
 # ---------- Human-readable summary ----------
 def _summarize_human(data: dict) -> str:
@@ -152,7 +152,7 @@ def _write_json_or_jsonl(records: List[Dict[str, Any]], fmt: str, out_path: Opti
 # ---------- CLI ----------
 def main():
     parser = argparse.ArgumentParser(description="Run repository scan, build dependency graph, and optionally fetch GitHub issues")
-    
+
     # Scanner arguments
     parser.add_argument("--repo", required=True, help="Path to the repository")
     parser.add_argument("--out", help="Write output to this file (stdout if omitted)")
@@ -165,7 +165,7 @@ def main():
                         help="Optional path to write a dependency graph JSON {nodes, edges}. If omitted and --out is given, a sibling <out>.graph.json is written.")
     parser.add_argument("--select-top", type=int, default=0,
                         help="Include top-N important files (uses scorer if available)")
-    
+
     # GitHub issues arguments
     parser.add_argument("--gh-repo",
                         help="GitHub repo in 'owner/name' form (e.g., akashbagchi/modern-portfolio). Enables closed-issues fetch.")
@@ -177,12 +177,12 @@ def main():
                         help="Where to write issues output. If omitted but --out set, derives a sibling path (e.g., scan.json -> scan.issues.jsonl).")
     parser.add_argument("--issues-format", default="jsonl", choices=["json", "jsonl"],
                         help="Issues output format: json | jsonl (default jsonl).")
-    parser.add_argument("--issues-keyword", action="append", 
+    parser.add_argument("--issues-keyword", action="append",
                         default=["setup","install","installation","config","configuration","env","dotenv","build","run","local","error","windows","mac","linux","docker","pnpm","yarn","npm","node","python","requirements","virtualenv","vite","nuxt","next","tailwind","eslint"],
                         help="Repeat for multiple keywords. Leave empty to disable filtering.")
     parser.add_argument("--issues-min-hits", type=int, default=1,
                         help="Minimum keyword hits to include an issue when filtering. Use 1..N. Use 0 to include all.")
-    
+
     args = parser.parse_args()
 
     # Set default includes if not specified

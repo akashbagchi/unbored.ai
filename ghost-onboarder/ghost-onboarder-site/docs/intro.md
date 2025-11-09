@@ -2,55 +2,40 @@
 sidebar_position: 1
 ---
 
-# akashbagchi/modern-portfolio - Architecture Overview
+# ../ - Architecture Overview
 
 High-Level System Design:
 
-The project follows a modern web application architecture with a separation of concerns between the frontend and backend. The frontend is built using the Nuxt.js framework, which is a Vue.js-based framework for building server-rendered and static web applications. The backend is a RESTful API built using Nuxt server handlers and a PostgreSQL database managed by the Drizzle ORM.
+The project is a monorepo consisting of two main components: `ghost-onboarder` and `ghost-onboarder-site`. The `ghost-onboarder` component is a Python package that serves as the core functionality, while `ghost-onboarder-site` is a Docusaurus-based website that provides a user interface and visualization for the project.
 
-Tech Stack and Rationale:
+Tech Stack:
 
-Frontend:
-- Nuxt.js (Vue.js framework): Provides server-side rendering, static site generation, and a modular architecture for building Vue.js applications.
-- PrimeVue: A comprehensive UI component library for Vue.js, offering a wide range of pre-built components and utilities.
-- Tailwind CSS: A utility-first CSS framework for rapidly building custom user interfaces.
-- GSAP: A popular JavaScript library for creating high-performance animations and transitions.
+- Python: The primary programming language used for the core functionality of the project.
+- Docusaurus: A React-based static site generator used for building the project's website.
+- GitHub API: The project interacts with the GitHub API to fetch repository data.
+- Claude API: The project likely interacts with the Claude API for natural language processing tasks.
 
-Backend:
-- Neon PostgreSQL (serverless): A serverless PostgreSQL database solution, providing a scalable and managed database service.
-- Drizzle ORM: A TypeScript-first ORM for building type-safe database queries and migrations.
-- Nuxt server handlers: Nuxt's built-in server middleware for handling API routes and server-side logic.
+Major Components/Modules:
 
-The chosen tech stack prioritizes performance, developer experience, and maintainability. Nuxt.js and PrimeVue provide a solid foundation for building modern, server-rendered Vue.js applications with a rich set of UI components. Tailwind CSS offers utility classes for rapid UI development, while GSAP enables advanced animations. On the backend, Neon PostgreSQL and Drizzle ORM simplify database management and ensure type safety.
-
-Major Components and Responsibilities:
-
-1. **Frontend**:
-   - `components/layout`: Contains layout components like the navigation bar and notifications.
-   - `components/ui`: Holds reusable UI components such as project cards, tech stack display, and hero sections.
-   - `composables`: Provides reusable composition functions for shared logic (e.g., theme management, mobile detection).
-   - `pages`: Defines the application's routes and page components.
-
-2. **Backend**:
-   - `server/api`: Contains API endpoints for handling CRUD operations on projects.
-   - `server/db`: Manages the database connection, schema, and migration scripts.
+1. `cli`: This module contains the command-line interface for the project.
+2. `claude_client.py`: This module likely handles the interaction with the Claude API.
+3. `github_client.py`: This module handles the interaction with the GitHub API.
+4. `scanner.py`: This module is responsible for scanning and analyzing repositories.
+5. `score_repo_files.py`: This module likely scores or evaluates the files in a repository.
+6. `ghost-onboarder-site`: This is the Docusaurus-based website component of the project.
 
 Data Flow:
 
-1. **Initial Page Load**: When a user visits the application, Nuxt.js server-renders the requested page and sends the HTML to the client. This ensures optimal initial load performance.
-
-2. **API Requests**: The frontend components interact with the backend API to fetch and manipulate project data. These requests are made using Nuxt's `useFetch` or `useAsyncData` composables.
-
-3. **Database Interaction**: The backend API handlers communicate with the PostgreSQL database through the Drizzle ORM. This includes querying, creating, updating, and deleting project data.
-
-4. **State Management**: Vue's Composition API and custom composables are used for managing application state and shared logic, such as theme preferences and mobile detection.
+1. The user interacts with the command-line interface (`cli` module) to initiate the scanning process.
+2. The `scanner.py` module fetches repository data from GitHub using the `github_client.py` module.
+3. The `score_repo_files.py` module analyzes and scores the repository files.
+4. The scored data is likely processed and sent to the Claude API via the `claude_client.py` module for natural language processing tasks.
+5. The processed data is then rendered and visualized on the `ghost-onboarder-site` website.
 
 External Dependencies:
 
-- **Vercel**: The application is configured for deployment on Vercel, a cloud platform for hosting static and server-rendered applications.
-- **Neon PostgreSQL**: A serverless PostgreSQL database service provided by Neon, used for storing and managing project data.
-
-This overview covers the high-level system design, tech stack rationale, major components, data flow, and external dependencies of the project. It aims to provide a comprehensive understanding of the application's architecture and technical decisions for a developer with 2 years of experience.
+- GitHub API: The project relies on the GitHub API to fetch repository data.
+- Claude API: The project likely relies on the Claude API for natural language processing tasks.
 
 ---
 

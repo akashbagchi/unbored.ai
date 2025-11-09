@@ -8,33 +8,58 @@ import subprocess
 import sys
 import requests
 from pathlib import Path
+import argparse
+from cli.scanner import scan_repo, build_dependency_graph
+from cli.github_client import GitHubClient, keyword_filter
+from cli.main import _write_jsonl, _iter_jsonl_records
 
-def run_scanner(repo_path, output_dir="outputs"):
-    """Generate scan.jsonl"""
-    print("🔍 Scanning repository...")
+def generate_all(repo_path: str, output_dir: str = "outputs",
+                    gh_repo: str | None = None, gh_token: str | None = None,
+                    issues_limit: int = 50, issues_keywords: list | None = None):
+    """Single command to generate all outputs"""
 
-    Path(output_dir).mkdir(exist_ok=True)
+    output_path = Path(output_dir)
+    output_path.mkdir(exist_ok=True)
 
-    cmd = [
-            "python", "cli/main.py",
-            "--repo", repo_path,
-            "--format", "jsonl",
-            "--out", f"{output_dir}/scan.jsonl"
-    ]
+    print("🔍 1/4 Scanning repository...")
+    scan_data = scan_repo(repo_path)
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    # Write scan.jsonl
+    scan_file = output_path / "scan.jsonl"
+    with open(scan_file, 'w') as f:
+        for record in _iter_jsonl_records(scan_data, include=["meta", "ascii_tree", "ecosystem", ...]):
+            f.write(json.dumps(record) + '\n')
+    print(f"✅ Generated {scan_file}")
 
-    if result.returncode != 0:
-        print(f"🚨 Scanner failed: {result.stderr}")
-        return False
+    print("📊 2/4 Building Dependency Graph...")
+    graph = build_dependency_graph(repo_path)
+    graph_file = output_path / "scanl.jsonl.graph.json"
+    graph_file.write_text(json.dumps(graph, indent=2))
+    print(f"✅ Generated {graph_file}")
 
-    print(f"✅ Generated {output_dir}/scan.jsonl")
-    return True
+    if gh_repo and issues_limit > 0:
+        print(f"🐙 3/4 Fetching GitHub issues...")
+        client = GitHubClient(token=gh_token)
+        raw_issues = client.fetch_closed_issues(gh_repo, limit=issues_limit, include_body=True)
+        filtered = keyword_filter(raw_issues, issues_keywords or [], min_hits=1)
+
+        issues_file = output_path / "scan.issues.jsonl"
+        with open(issues_file, 'w') as f:
+            for issue in filtered:
+                f.write(json.dumps(issue) + '\n')
+        print(f"✅ Generated {issues_file}")
+    else:
+        print("⏭️ 3/4 Skipping issues (not configured)")
+
+    print("🤖 4/4 Generating documentation with Claude...")
+    # Call Claude API logic
+    onboarding_doc = generate_onboarding_doc(scan_file, gh_repo or repo_path)
+
+    return output_path, onboarding_doc
+
 
 def generate_onboarding_doc(scan_file, repo_name):
     """Call Claude API"""
-    print("🤖 Generating onboarding doc with Claude...")
-
     try:
         repo_data = Path(scan_file).read_text()
 
@@ -111,35 +136,41 @@ sidebar_position: 1
     return True
 
 def main():
-    if len(sys.argv) < 3:
-        print("Usage: python update_site.py <repo_path> <repo_name> [site_path]")
-        print("Example: python update_site.py ../tmprepo/modern-portfolio akashbagchi/modern-portfolio ghost-onboarder-site")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Ghost Onboarder - Generate onboarding docs")
+    parser.add_argument("repo_path", nargs='?', default=".",
+                       help="Repository path (default: current directory)")
+    parser.add_argument("--output", "-o", default="outputs",
+                       help="Output directory (default: outputs)")
+    parser.add_argument("--gh-repo",
+                       help="GitHub repo (owner/name) for issues")
+    parser.add_argument("--gh-token",
+                       help="GitHub token (or set GITHUB_TOKEN env var)")
+    parser.add_argument("--issues-limit", type=int, default=50,
+                       help="Number of issues to fetch (default: 50)")
+    parser.add_argument("--site-path", default="ghost-onboarder-site",
+                       help="Docusaurus site path (default: ghost-onboarder-site)")
 
-    repo_path = sys.argv[1]
-    repo_name = sys.argv[2]
-    site_path = sys.argv[3] if len(sys.argv) > 3 else "ghost-onboarder-site"
+    args = parser.parse_args()
 
-    print(f"🏁 Updating {site_path} with docs for {repo_name}")
+    print(f"🏁 Generating docs for {args.repo_path}")
     print()
 
-    # Step 1: Generate scan
-    if not run_scanner(repo_path):
-        sys.exit(1)
+    # Generate all outputs
+    output_path, onboarding_doc = generate_all(
+        repo_path=args.repo_path,
+        output_dir=args.output,
+        gh_repo=args.gh_repo,
+        gh_token=args.gh_token,
+        issues_limit=args.issues_limit
+    )
 
-    # Step 2: Generate docs
-    onboarding_doc = generate_onboarding_doc("outputs/scan.jsonl", repo_name)
-    if not onboarding_doc:
-        sys.exit(1)
-
-    # Step 3: Update site
-    if not update_existing_site(onboarding_doc, repo_name, site_path):
+    # Update site
+    if not update_existing_site(onboarding_doc, args.gh_repo or args.repo_path, args.site_path):
         sys.exit(1)
 
     print()
-    print("🎉 Site updated successfully!")
-    print(f"💡 Start site: cd {site_path} && npm start")
+    print("🎉 Documentation generated successfully!")
+    print(f"💡 Start site: cd {args.site_path} && npm start")
 
 if __name__ == "__main__":
     main()
-
