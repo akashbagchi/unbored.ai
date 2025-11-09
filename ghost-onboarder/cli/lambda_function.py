@@ -18,7 +18,7 @@ def lambda_handler(event, context):
         if not repo_data:
             return { "statusCode": 400, "body": "Missing 'repo_data'." }
 
-        prompt = f"""You are a senior developer and project lead with 8+ years of experience. Based on the repository `{repo_name}`, Generate a comprehensive overview (500-800 words) covering:
+        prompt = f"""You are a senior developer and project lead with 8+ years of experience. Based on the repository `{repo_name}`, Generate a comprehensive overview (1000 words) covering:
                         - High level system design
                         - Tech stack and why it's chosen
                         - Major components/modules and their responsibilities
@@ -37,7 +37,7 @@ def lambda_handler(event, context):
         resp = client.converse(
             modelId=MODEL_ID,
             messages=[{"role": "user", "content": [{"text": prompt}]}],
-            inferenceConfig={"maxTokens": 2000, "temperature": 0.3},
+            inferenceConfig={"maxTokens": 2500, "temperature": 0.3},
         )
 
         output = "".join(c.get("text","") for c in resp["output"]["message"]["content"])
