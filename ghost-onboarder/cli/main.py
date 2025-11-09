@@ -2,8 +2,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import sys
+from github_client import GitHubClient, keyword_filter
 import argparse
-from typing import Iterable, Dict, Any
+from typing import Iterable, Dict, Any, List, Optional
 from scanner import scan_repo, build_dependency_graph
 
 # ---------- Human-readable summary ----------
@@ -131,9 +132,28 @@ def _write_jsonl(data: Dict[str, Any], out_path: Path | None, include: Iterable[
         if stream is not sys.stdout:
             stream.close()
 
+def _write_json_or_jsonl(records: List[Dict[str, Any]], fmt: str, out_path: Optional[Path]) -> None:
+    fmt = fmt.lower()
+    if fmt == "jsonl":
+        stream = sys.stdout if out_path is None else out_path.open("w", encoding="utf-8", newline="\n")
+        try:
+            for r in records:
+                stream.write(json.dumps(r, ensure_ascii=False) + "\n")
+        finally:
+            if stream is not sys.stdout:
+                stream.close()
+    else:
+        text = json.dumps(records, indent=2, ensure_ascii=False)
+        if out_path:
+            out_path.write_text(text, encoding="utf-8")
+        else:
+            print(text)
+
 # ---------- CLI ----------
 def main():
-    parser = argparse.ArgumentParser(description="Run repository scan and optionally emit a dependency graph")
+    parser = argparse.ArgumentParser(description="Run repository scan, build dependency graph, and optionally fetch GitHub issues")
+    
+    # Scanner arguments
     parser.add_argument("--repo", required=True, help="Path to the repository")
     parser.add_argument("--out", help="Write output to this file (stdout if omitted)")
     parser.add_argument("--format", "-f", default="human", choices=["human", "json", "jsonl"],
@@ -145,6 +165,24 @@ def main():
                         help="Optional path to write a dependency graph JSON {nodes, edges}. If omitted and --out is given, a sibling <out>.graph.json is written.")
     parser.add_argument("--select-top", type=int, default=0,
                         help="Include top-N important files (uses scorer if available)")
+    
+    # GitHub issues arguments
+    parser.add_argument("--gh-repo",
+                        help="GitHub repo in 'owner/name' form (e.g., akashbagchi/modern-portfolio). Enables closed-issues fetch.")
+    parser.add_argument("--gh-token",
+                        help="GitHub token (or set env GITHUB_TOKEN). Needed for private repos / higher rate limit.")
+    parser.add_argument("--issues-limit", type=int, default=0,
+                        help="How many CLOSED issues to fetch (skip PRs). 0 to skip fetching.")
+    parser.add_argument("--issues-out",
+                        help="Where to write issues output. If omitted but --out set, derives a sibling path (e.g., scan.json -> scan.issues.jsonl).")
+    parser.add_argument("--issues-format", default="jsonl", choices=["json", "jsonl"],
+                        help="Issues output format: json | jsonl (default jsonl).")
+    parser.add_argument("--issues-keyword", action="append", 
+                        default=["setup","install","installation","config","configuration","env","dotenv","build","run","local","error","windows","mac","linux","docker","pnpm","yarn","npm","node","python","requirements","virtualenv","vite","nuxt","next","tailwind","eslint"],
+                        help="Repeat for multiple keywords. Leave empty to disable filtering.")
+    parser.add_argument("--issues-min-hits", type=int, default=1,
+                        help="Minimum keyword hits to include an issue when filtering. Use 1..N. Use 0 to include all.")
+    
     args = parser.parse_args()
 
     # Set default includes if not specified
@@ -153,7 +191,7 @@ def main():
     else:
         include = args.include
 
-    # Scan the repo (NEW: pass top_n_important)
+    # ----- SCANNER -----
     data = scan_repo(args.repo, top_n_important=(args.select_top or None))
 
     # ----- write primary output -----
@@ -176,6 +214,12 @@ def main():
         else:
             print(text)
 
+        # If human format, also create a JSONL sidecar file for later steps
+        if fmt == "human" and out_path:
+            jsonl_path = out_path.with_suffix(out_path.suffix + ".jsonl")
+            _write_jsonl(data, jsonl_path, include)
+            print(f"Wrote {jsonl_path}")
+
     # ----- build and write dependency graph -----
     graph = build_dependency_graph(args.repo)
 
@@ -188,9 +232,29 @@ def main():
             gpath = out_path.with_suffix(".graph.json")
     else:
         gpath = Path("scan.graph.json")
-
     gpath.write_text(json.dumps(graph, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"Wrote {gpath}")
+
+    # ----- GITHUB ISSUES (optional) -----
+    if args.gh_repo and args.issues_limit > 0:
+        client = GitHubClient(token=args.gh_token)
+        raw = client.fetch_closed_issues(repo_full_name=args.gh_repo, limit=args.issues_limit, include_body=True)
+
+        # Filter by keywords (set issues_min_hits=0 to keep all)
+        filtered = keyword_filter(raw, args.issues_keyword, min_hits=max(0, args.issues_min_hits))
+
+        # Decide output path
+        if args.issues_out is not None:
+            ipath = Path(args.issues_out)
+        elif out_path is not None:
+            # derive from --out
+            base = out_path.with_suffix(out_path.suffix + ".issues") if out_path.suffix else out_path.with_suffix(".issues")
+            ipath = base.with_suffix(base.suffix + (".jsonl" if args.issues_format.lower()=="jsonl" else ".json"))
+        else:
+            ipath = Path("issues.jsonl" if args.issues_format.lower()=="jsonl" else "issues.json")
+
+        _write_json_or_jsonl(filtered, args.issues_format, ipath)
+        print(f"Wrote {ipath}")
 
 if __name__ == "__main__":
     main()
