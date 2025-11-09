@@ -50,11 +50,16 @@ function GraphClient() {
   ];
   const colorForLevel = (lvl: number) => LEVEL_COLORS[lvl % LEVEL_COLORS.length];
 
-  const withAlpha = (hex: string, alpha = 0.12) => {
+  // Make an OPAQUE soft background by mixing stroke with white
+  const mixWithWhite = (hex: string, t = 0.85) => {
     const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    if (!m) return hex;
+    if (!m) return "#ffffff";
     const r = parseInt(m[1], 16), g = parseInt(m[2], 16), b = parseInt(m[3], 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    const R = Math.round(r * (1 - t) + 255 * t);
+    const G = Math.round(g * (1 - t) + 255 * t);
+    const B = Math.round(b * (1 - t) + 255 * t);
+    const toHex = (v:number) => v.toString(16).padStart(2, "0");
+    return `#${toHex(R)}${toHex(G)}${toHex(B)}`;
   };
   // ----------------------------------------------------------------------
 
@@ -74,7 +79,7 @@ function GraphClient() {
 
       const level = getLevel(n.id);
       const stroke = colorForLevel(level);
-      const bg = withAlpha(stroke, 0.14);
+      const bg = mixWithWhite(stroke, 0.86); // opaque pastel (no alpha)
 
       return {
         id: n.id,
@@ -83,11 +88,12 @@ function GraphClient() {
         style: {
           padding: 6,
           borderRadius: 12,
-          background: bg,
+          background: bg,                // OPAQUE fill so edges can't show through
           border: `1.5px solid ${stroke}`,
           fontSize: 11,
-          opacity: isActive ? 1 : 0.15,
-          transition: "opacity 120ms ease",
+          // Use filter to "dim" non-active nodes without transparency
+          filter: isActive ? "none" : "brightness(0.3) saturate(0.4) contrast(0.8) grayscale(0.3)",
+          transition: "filter 120ms ease",
         },
         draggable: false,
         title: `Level ${level} • ${n.id}`,
@@ -138,7 +144,6 @@ function GraphClient() {
           50%  { opacity: 0.95; }
           100% { opacity: 0.55; }
         }
-        /* React Flow wraps edges in <g>; animate its <path> when active */
         g.edge-pulse path { animation: edgePulse 2400ms ease-in-out infinite; }
         g.edge-dim   path { animation: none; }
       `}</style>
