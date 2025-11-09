@@ -1,5 +1,4 @@
-// src/pages/graph.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import Layout from "@theme/Layout";
 
@@ -7,52 +6,159 @@ function GraphClient() {
   const { ReactFlow, Background, Controls, MiniMap } = require("reactflow");
   require("reactflow/dist/style.css");
 
-  const [g, setG] = useState<{nodes:any[]; edges:any[]}>({nodes:[], edges:[]});
+  const [g, setG] = useState<{ nodes: any[]; edges: any[] }>({ nodes: [], edges: [] });
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+
+  // --- DEV-ONLY: suppress Chrome's noisy ResizeObserver overlay error ---
+  useEffect(() => {
+    const handler = (e: ErrorEvent) => {
+      if (e?.message && e.message.includes("ResizeObserver loop")) {
+        e.stopImmediatePropagation();
+      }
+    };
+    window.addEventListener("error", handler);
+    return () => window.removeEventListener("error", handler);
+  }, []);
+  // ---------------------------------------------------------------------
 
   useEffect(() => {
-    fetch("/graph_with_pos.json").then(r=>r.json()).then(setG);
+    fetch("/graph_with_pos.json").then((r) => r.json()).then(setG);
   }, []);
 
-  const nodes = g.nodes.map(n => ({
-    id: n.id,
-    position: { x: n.x, y: n.y },
-    data: { label: n.label },
-    style: {
-      padding: 6, borderRadius: 12, background: "#fff",
-      border: "1px solid #999", fontSize: 11,
-    },
-    draggable: false,
-  }));
+  // Build a quick neighbor index for hover highlighting
+  const neighbors = useMemo(() => {
+    const m = new Map<string, Set<string>>();
+    for (const n of g.nodes || []) m.set(n.id, new Set());
+    for (const e of g.edges || []) {
+      m.get(e.source)?.add(e.target);
+      m.get(e.target)?.add(e.source);
+    }
+    return m;
+  }, [g]);
 
-  const edges = g.edges.map((e, i) => ({
-    id: `${e.source}-${e.target}-${i}`,
-    source: e.source, target: e.target,
-    style: { strokeWidth: 1.2, opacity: 0.75 },
-  }));
+  // --- File-level coloring helpers --------------------------------------
+  const getLevel = (id: string) => {
+    if (!id) return 0;
+    const norm = id.replace(/\\/g, "/");
+    const parts = norm.split("/").filter(Boolean);
+    return Math.max(0, parts.length - 1);
+  };
+
+  const LEVEL_COLORS = [
+    "#4C78A8", "#F58518", "#54A24B", "#E45756",
+    "#72B7B2", "#B279A2", "#FF9DA6", "#9C755F",
+  ];
+  const colorForLevel = (lvl: number) => LEVEL_COLORS[lvl % LEVEL_COLORS.length];
+
+  // Make an OPAQUE soft background by mixing stroke with white
+  const mixWithWhite = (hex: string, t = 0.85) => {
+    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!m) return "#ffffff";
+    const r = parseInt(m[1], 16), g = parseInt(m[2], 16), b = parseInt(m[3], 16);
+    const R = Math.round(r * (1 - t) + 255 * t);
+    const G = Math.round(g * (1 - t) + 255 * t);
+    const B = Math.round(b * (1 - t) + 255 * t);
+    const toHex = (v:number) => v.toString(16).padStart(2, "0");
+    return `#${toHex(R)}${toHex(G)}${toHex(B)}`;
+  };
+  // ----------------------------------------------------------------------
+
+  // RAF-throttled hover setter to reduce layout churn
+  const hoverRaf = useRef<number | null>(null);
+  const setHoverThrottled = (id: string | null) => {
+    if (hoverRaf.current) cancelAnimationFrame(hoverRaf.current);
+    hoverRaf.current = requestAnimationFrame(() => setHoveredId(id));
+  };
+
+  const nodes = useMemo(() => {
+    return (g.nodes || []).map((n) => {
+      const isActive =
+        !hoveredId ||
+        hoveredId === n.id ||
+        neighbors.get(hoveredId || "")?.has(n.id);
+
+      const level = getLevel(n.id);
+      const stroke = colorForLevel(level);
+      const bg = mixWithWhite(stroke, 0.86); // opaque pastel (no alpha)
+
+      return {
+        id: n.id,
+        position: { x: n.x, y: n.y },
+        data: { label: n.label },
+        style: {
+          padding: 6,
+          borderRadius: 12,
+          background: bg,                // OPAQUE fill so edges can't show through
+          border: `1.5px solid ${stroke}`,
+          fontSize: 11,
+          // Use filter to "dim" non-active nodes without transparency
+          filter: isActive ? "none" : "brightness(0.3) saturate(0.4) contrast(0.8) grayscale(0.3)",
+          transition: "filter 120ms ease",
+        },
+        draggable: false,
+        title: `Level ${level} • ${n.id}`,
+      };
+    });
+  }, [g.nodes, hoveredId, neighbors]);
+
+  const edges = useMemo(() => {
+    return (g.edges || []).map((e, i) => {
+      const touchesHover =
+        !hoveredId ||
+        e.source === hoveredId ||
+        e.target === hoveredId ||
+        (neighbors.get(hoveredId || "")?.has(e.source) &&
+         neighbors.get(hoveredId || "")?.has(e.target));
+
+      return {
+        id: `${e.source}-${e.target}-${i}`,
+        source: e.source,
+        target: e.target,
+        className: touchesHover ? "edge-pulse" : "edge-dim",
+        style: {
+          strokeWidth: 1.2,
+          stroke: "#98A6B3",
+          opacity: touchesHover ? 0.85 : 0.1,
+          transition: "opacity 120ms ease",
+        },
+      };
+    });
+  }, [g.edges, hoveredId, neighbors]);
 
   return (
     <div
       style={{
-        height: "calc(100vh - 0px)",   // full viewport height
-        width: "100%",                 // full width
+        height: "calc(100vh - 0px)",
+        width: "100%",
         borderRadius: 0,
         overflow: "hidden",
         background: "#fafafa",
         borderTop: "1px solid #e9ecef",
+        position: "relative",
       }}
     >
+      {/* Edge pulse keyframes + class targeting */}
+      <style>{`
+        @keyframes edgePulse {
+          0%   { opacity: 0.55; }
+          50%  { opacity: 0.95; }
+          100% { opacity: 0.55; }
+        }
+        g.edge-pulse path { animation: edgePulse 2400ms ease-in-out infinite; }
+        g.edge-dim   path { animation: none; }
+      `}</style>
+
       <ReactFlow
         nodes={nodes}
         edges={edges}
         fitView
-        fitViewOptions={{ padding: 0.12 }}  // small padding since the viewport is large
+        fitViewOptions={{ padding: 0.12 }}
         panOnScroll
         zoomOnScroll
         proOptions={{ hideAttribution: true }}
-        onNodeClick={(_, node) => {
-          const slug = node.id.replace(/[\/.]/g, "-");
-          window.open(`/docs/${slug}`, "_self");
-        }}
+        onNodeMouseEnter={(_, node) => setHoverThrottled(node.id)}
+        onNodeMouseLeave={() => setHoverThrottled(null)}
+        onNodeClick={() => {}}
         minZoom={0.2}
         maxZoom={2}
       >
@@ -67,7 +173,6 @@ function GraphClient() {
 export default function GraphPage() {
   return (
     <Layout title="Graph View" description="Precomputed layout (spaced)">
-      {/* Full-bleed: remove maxWidth to let the canvas fill the page */}
       <main style={{ margin: 0, padding: 0, maxWidth: "none" }}>
         <BrowserOnly>{() => <GraphClient />}</BrowserOnly>
       </main>

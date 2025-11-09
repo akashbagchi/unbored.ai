@@ -10,5 +10,4 @@ ghost-onboarder/.DS_Store
 **/cli/test/
 =======
 ghost-onboarder/ghost-onboarder-site/node_modules
-ghost-onboarder-site/static/graph_with_pos.json
->>>>>>> main
+ghost-onboarder/ghost-onboarder-site/static/*.json
