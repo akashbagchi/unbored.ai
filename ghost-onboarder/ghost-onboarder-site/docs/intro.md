@@ -2,40 +2,53 @@
 sidebar_position: 1
 ---
 
-# ../ - Architecture Overview
+# akashbagchi/claude-builder-2025 - Architecture Overview
 
 High-Level System Design:
 
-The project is a monorepo consisting of two main components: `ghost-onboarder` and `ghost-onboarder-site`. The `ghost-onboarder` component is a Python package that serves as the core functionality, while `ghost-onboarder-site` is a Docusaurus-based website that provides a user interface and visualization for the project.
+The `claude-builder-2025` repository consists of two main components: `ghost-onboarder` and `ghost-onboarder-site`. The `ghost-onboarder` component is a Python package that serves as the backend for the system, while `ghost-onboarder-site` is a Docusaurus-based React application that acts as the frontend.
 
 Tech Stack:
 
-- Python: The primary programming language used for the core functionality of the project.
-- Docusaurus: A React-based static site generator used for building the project's website.
-- GitHub API: The project interacts with the GitHub API to fetch repository data.
-- Claude API: The project likely interacts with the Claude API for natural language processing tasks.
+- Python: The backend is written in Python, which is a versatile and widely-used programming language known for its simplicity and readability.
+- Docusaurus: The frontend is built using Docusaurus, a React-based static site generator designed for creating documentation websites.
+- React: The frontend user interface is developed using React, a popular JavaScript library for building user interfaces.
+- TypeScript: The frontend codebase is written in TypeScript, a superset of JavaScript that adds static typing, improving code maintainability and catching errors during development.
 
-Major Components/Modules:
+Major Components and Responsibilities:
 
-1. `cli`: This module contains the command-line interface for the project.
-2. `claude_client.py`: This module likely handles the interaction with the Claude API.
-3. `github_client.py`: This module handles the interaction with the GitHub API.
-4. `scanner.py`: This module is responsible for scanning and analyzing repositories.
-5. `score_repo_files.py`: This module likely scores or evaluates the files in a repository.
-6. `ghost-onboarder-site`: This is the Docusaurus-based website component of the project.
+1. `ghost-onboarder`:
+   - `cli`: This module contains the command-line interface (CLI) for interacting with the system.
+   - `claude_client.py`: Handles communication with the Claude AI model.
+   - `github_client.py`: Manages interactions with the GitHub API for repository analysis.
+   - `lambda_function.py`: Contains the AWS Lambda function code for serverless deployment.
+   - `main.py`: The main entry point for the backend application.
+   - `prompts.py`: Defines the prompts used for querying the Claude AI model.
+   - `scanner.py`: Responsible for scanning and analyzing repository files.
+   - `score_repo_files.py`: Scores and ranks repository files based on their relevance.
 
-Data Flow:
+2. `ghost-onboarder-site`:
+   - `blog`: Contains blog posts and related assets.
+   - `docs`: Holds the documentation content for the project.
+   - `src/components`: Includes reusable React components for the frontend.
+   - `src/pages`: Contains the main pages of the website, including the graph visualization.
+   - `static`: Stores static assets like images and icons.
 
-1. The user interacts with the command-line interface (`cli` module) to initiate the scanning process.
-2. The `scanner.py` module fetches repository data from GitHub using the `github_client.py` module.
-3. The `score_repo_files.py` module analyzes and scores the repository files.
-4. The scored data is likely processed and sent to the Claude API via the `claude_client.py` module for natural language processing tasks.
-5. The processed data is then rendered and visualized on the `ghost-onboarder-site` website.
+Data Flow Between Components:
+
+1. The `scanner.py` module scans the repository files and generates a JSON representation of the repository structure.
+2. The `score_repo_files.py` module scores and ranks the repository files based on their relevance.
+3. The `claude_client.py` module interacts with the Claude AI model to generate summaries and insights for the relevant repository files.
+4. The `github_client.py` module retrieves additional information from the GitHub API, if required.
+5. The processed data is then passed to the `ghost-onboarder-site` component, where it is rendered and visualized using React components.
 
 External Dependencies:
 
-- GitHub API: The project relies on the GitHub API to fetch repository data.
-- Claude API: The project likely relies on the Claude API for natural language processing tasks.
+- Claude AI Model: The system relies on the Claude AI model for generating summaries and insights about the repository files.
+- GitHub API: The `github_client.py` module interacts with the GitHub API to fetch repository metadata and other relevant information.
+- AWS Lambda (optional): The `lambda_function.py` module allows for serverless deployment of the backend using AWS Lambda functions.
+
+This overview provides a high-level understanding of the system's design, tech stack, major components, data flow, and external dependencies. It should help a developer with 2 years of experience grasp the overall structure and functionality of the `claude-builder-2025` repository.
 
 ---
 

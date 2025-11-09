@@ -54,9 +54,8 @@ const config: Config = {
           type: 'docSidebar',
           sidebarId: 'tutorialSidebar',
           position: 'left',
-          label: 'Docs',
+          label: 'Architecture Overview',
         },
-        { to: '/blog', label: 'Blog', position: 'left' },
         { to: '/graph', label: 'Graph View', position: 'right' }, // 👈 keep this
       ],
     },
@@ -67,7 +66,7 @@ const config: Config = {
         {
           title: 'Resources',
           items: [
-            { label: 'Docs', to: '/docs/intro' },
+            { label: 'Architecture Overview', to: '/docs/intro' },
             { label: 'Graph View', to: '/graph' },
           ],
         },
