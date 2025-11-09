@@ -157,7 +157,7 @@ WRITING RULES:
 - Reference specific functions/classes you see in the structure
 - Write in second person ("you'll modify X when...")
 - Be opinionated about the architecture ("This uses X pattern because...")
-- 1500-2000 words total
+- 1500-2500 words total
 - NO installation/setup/contributing sections
 """
 

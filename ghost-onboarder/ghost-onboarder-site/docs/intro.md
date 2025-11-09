@@ -2,104 +2,112 @@
 sidebar_position: 1
 ---
 
-# akashbagchi/claude-builder-2025 - Architecture Overview
+# akashbagchi/modern-portfolio - Architecture Overview
 
-# Understanding the Ghost Onboarder Codebase
+# Modern Portfolio Codebase Documentation
 
 ## Understanding the Codebase
 
-Ghost Onboarder follows a pipeline-driven architecture, where discrete processing stages transform a repository into documentation. The codebase is split between a Python-based analysis pipeline and a React-based documentation site, connected through JSONL data files.
+This project follows a Nuxt 3-based architecture with a clear separation between server and client concerns. The codebase is structured as a monolithic application with distinct frontend and backend layers, using Nuxt's built-in server capabilities alongside a PostgreSQL database.
 
-The core architectural pattern is a multi-stage processor where each stage has a single responsibility:
-1. Repository scanning (`cli/scanner.py`)
-2. Content analysis (`cli/score_repo_files.py`) 
-3. AI processing (`cli/claude_client.py`)
-4. Site generation (`ghost-onboarder-site/`)
+The most important concepts to grasp are:
 
-The most important concept to grasp is the data flow between stages - each processor expects specific JSONL formats from the previous stage. Changes to output formats require coordinated updates across multiple files.
+1. **Component-Driven Architecture**: The UI is built entirely from Vue components, with shared logic extracted into composables. This pattern drives both the organization and the development workflow.
+
+2. **Server-Side Integration**: Unlike typical Nuxt apps that might rely on external APIs, this project includes its own backend implementation using Nuxt's server handlers and Drizzle ORM for database operations.
 
 ## Code Organization & Flow
 
-**`cli/` Directory**
-- **Purpose**: Contains the core repository analysis pipeline
-- **Key files**: 
-  - `scanner.py` - Walks repository structure and extracts metadata
-  - `score_repo_files.py` - Analyzes file importance and relationships
-  - `claude_client.py` - Handles AI processing via AWS Lambda
-- **When you'll touch this**: Adding new file analysis capabilities or modifying the scanning logic
-- **Gotchas**: `scanner.py` and `score_repo_files.py` are tightly coupled - changes to scanning output require updates to scoring logic
+**`components/`**
+- **Purpose**: Houses all Vue components, split between `layout/` for structural components and `ui/` for reusable interface elements
+- **Key files**: `NavBar.vue` manages navigation and theme switching, while `HeroSection.vue` and `ProjectCard.vue` handle core content display
+- **When you'll touch this**: Adding new UI features or modifying existing ones
+- **Gotchas**: Components rely heavily on composables for shared logic - always check `composables/` when modifying components
 
-**`outputs/` Directory**
-- **Purpose**: Stores intermediate processing results between pipeline stages
-- **Key files**:
-  - `scan.jsonl` - Raw repository scan data
-  - `scan.jsonl.graph.json` - Processed dependency relationships
-- **When you'll touch this**: Debugging pipeline issues or modifying data formats
-- **Gotchas**: Files are overwritten on each run - back up if needed for debugging
+**`composables/`**
+- **Purpose**: Centralizes reusable logic and state management
+- **Key files**: `use-theme.ts` manages dark/light mode, `use-mobile.ts` handles responsive behavior
+- **When you'll touch this**: Adding new shared functionality or modifying existing behavior that spans multiple components
+- **Gotchas**: Changes here can affect multiple components - carefully check usage with your IDE's "Find References" feature
 
-**`ghost-onboarder-site/` Directory**
-- **Purpose**: Docusaurus-based documentation site that displays analysis results
-- **Key files**:
-  - `src/pages/graph.tsx` - Interactive repository visualization
-  - `docs/intro.md` - AI-generated architecture overview
-- **When you'll touch this**: Customizing documentation layout or visualization
-- **Gotchas**: Graph visualization expects specific JSON schema from `generate_graph_position.py`
+**`server/`**
+- **Purpose**: Contains all backend logic including API endpoints and database operations
+- **Key files**: `db/schema.ts` defines database structure, `api/projects/*.ts` handle CRUD operations
+- **When you'll touch this**: Modifying data models or API endpoints
+- **Gotchas**: Changes to schema require running migrations (`pnpm db:migrate`), and API changes may need updates to corresponding frontend calls
+
+**`pages/`**
+- **Purpose**: Defines the application's routing structure and page-level components
+- **Key files**: `index.vue` is the landing page, `projects/index.vue` manages project listing
+- **When you'll touch this**: Adding new routes or modifying page-level layouts
+- **Gotchas**: Pages automatically become routes in Nuxt - be mindful of file naming and placement
 
 ## Data Flow Paths
 
-**Repository Analysis Pipeline**
-1. `generator.py` invokes `cli/main.py` with repository path
-2. `scanner.py` walks files and outputs to `outputs/scan.jsonl`
-3. `score_repo_files.py` analyzes importance and writes `scan.issues.jsonl`
-4. `generate_graph_position.py` creates visualization data in `scan.jsonl.graph.json`
-5. `claude_client.py` processes scan data through Lambda for documentation
-6. Generated content updates `ghost-onboarder-site/docs/intro.md`
+**Project Listing Flow:**
+1. User visits `/projects`
+2. `pages/projects/index.vue` triggers `useProjects()` composable
+3. Composable calls `/api/projects` endpoint
+4. Server handler in `server/api/projects.get.ts` queries database via Drizzle
+5. Data flows back through the chain and renders via `ProjectCard.vue` components
 
-**Documentation Site Updates**
-1. Site watches `docs/intro.md` for content changes
-2. `src/pages/graph.tsx` loads `graph_with_pos.json` on render
-3. Docusaurus rebuilds affected pages automatically
-4. Changes appear in development server or production build
+**Theme Switching Flow:**
+1. User clicks theme toggle in `NavBar.vue`
+2. `useTheme()` composable updates state
+3. Changes propagate through `layouts/default.vue`
+4. Theme preference is persisted to localStorage
+5. Tailwind classes update throughout the app
 
 ## Key Architectural Decisions
 
-**Lambda vs Direct API**
-- Uses AWS Lambda to proxy Claude API calls for several reasons:
-- Keeps API keys secure and centralized
-- Enables request/response transformation
-- Provides usage monitoring and quotas
-- You'll find Lambda logic in `cli/lambda_function.py`
+**Component Organization**
+The split between `layout/` and `ui/` components creates a clear separation of concerns. Layout components handle structural elements and app-wide features, while UI components are more focused and reusable. This organization makes it easier to maintain consistency and reduce duplication.
 
-**JSONL vs JSON**
-- JSONL chosen for pipeline data format because:
-- Supports streaming processing of large repos
-- Each line is valid JSON (easier debugging)
-- Natural fit for file-by-file analysis
-- See format examples in `outputs/scan.jsonl`
+**Database Integration**
+The project uses Drizzle ORM with PostgreSQL, hosted on Neon's serverless platform. This choice enables:
+- Type-safe database operations
+- Easy schema migrations
+- Serverless deployment compatibility
+- Cost-effective scaling
 
-**Docusaurus Integration**
-- Updates existing site rather than generating from scratch:
-- Preserves custom styling and configuration
-- Allows mixing generated and manual content
-- Enables incremental updates
-- Integration happens in `ghost-onboarder-site/docs/`
+**State Management**
+Rather than using Pinia or Vuex, the project leverages Vue's Composition API through composables. This approach:
+- Reduces boilerplate compared to traditional state management
+- Keeps state close to where it's used
+- Makes testing and maintenance easier
+- Allows for granular code-splitting
 
-**Graph Visualization**
-- Uses React Flow for repository visualization:
-- Interactive node dragging and zooming
-- Custom node rendering capabilities
-- Force-directed layout algorithm
-- Implementation in `src/pages/graph.tsx`
+**Mobile-First Approach**
+The codebase heavily emphasizes mobile support through:
+- Dedicated mobile detection via `use-mobile.ts`
+- Conditional rendering in components
+- Mobile-specific UI elements like `MobileAlert.vue`
+- Responsive Tailwind classes throughout
 
-The codebase emphasizes pipeline modularity while maintaining strict data contracts between stages. When making changes, you'll need to consider impacts across the entire flow from scanning through visualization.
+## Module Dependencies
 
-Common pain points include:
-- Coordinating changes to JSONL formats across multiple files
-- Debugging Lambda integration issues
-- Managing state between pipeline runs
-- Customizing Docusaurus without breaking generated content
+The codebase has several key dependency hubs:
 
-Focus on understanding the data flow first - most bugs stem from mismatched expectations between pipeline stages rather than issues within individual components.
+- `composables/use-mobile.ts` is imported by many components for responsive behavior
+- `server/db/config.ts` and `schema.ts` are central to all API endpoints
+- `types/project.ts` defines interfaces used throughout the project
+
+Leaf nodes (only import, never imported):
+- Page components (`pages/*.vue`)
+- API endpoint handlers
+- Individual UI components
+
+There are no circular dependencies, but be aware that changes to core types in `types/` or database schema can have wide-ranging effects.
+
+## Common Pain Points
+
+Based on issue history, new developers should be aware of:
+
+1. **Accessibility Concerns**: The navbar and navigation links need careful attention to ARIA attributes and roles. When modifying navigation components, ensure you maintain accessibility standards.
+
+2. **Mobile Responsiveness**: The mobile-first approach requires testing on various screen sizes. Use the `useMobile()` composable consistently rather than creating new mobile detection logic.
+
+3. **Database Schema Changes**: Modifications to `server/db/schema.ts` require migration handling. Always run `pnpm db:generate` and `pnpm db:migrate` after schema changes.
 
 ---
 
