@@ -44,7 +44,7 @@ const config: Config = {
     },
 
     navbar: {
-      title: 'akashbagchi/modern-portfolio Documentation',
+      title: 'Onboarding Knowledge Base',
       logo: {
         alt: 'Ghost Onboarder Logo',
         src: 'img/logo.svg',
