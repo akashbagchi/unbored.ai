@@ -176,7 +176,7 @@ def main():
 
     print()
     print("🎉 Documentation generated successfully!")
-    print(f"💡 Start site: cd {args.site_path} && npm start")
+    print(f"💡 Start site: cd {args.site_path} && npm run build && npm run serve")
 
 if __name__ == "__main__":
     main()
