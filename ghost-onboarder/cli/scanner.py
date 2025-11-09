@@ -6,13 +6,20 @@ Now with:
 - Lockfile redaction for readability
 - Shorter excerpts
 - Dependency graph extractor (JS/TS/Vue + Python, relative imports only)
+- OPTIONAL: important_files via score_repo_files.select_top_files_local
 """
 
 import os
 import json
 import re
 from pathlib import Path
-from typing import Dict, List, Any, Iterable, Optional, Tuple
+from typing import Dict, List, Any, Iterable, Optional
+
+# ---- Try to import the scorer (optional) ----
+try:
+    from score_repo_files import select_top_files_local
+except Exception:
+    select_top_files_local = None
 
 # --------- Tunable knobs ---------
 IGNORED_DIRS = {
@@ -237,7 +244,7 @@ def _sample_folder_files(root: Path) -> List[Dict[str, Any]]:
     return samples
 
 # --------- Public: scan summary ---------
-def scan_repo(root_path: str | Path) -> Dict[str, Any]:
+def scan_repo(root_path: str | Path, top_n_important: Optional[int] = None) -> Dict[str, Any]:
     root = Path(root_path).resolve()
     files = _build_file_list(root)
     signals = {
@@ -246,7 +253,7 @@ def scan_repo(root_path: str | Path) -> Dict[str, Any]:
         "has_containerization": (root / "Dockerfile").exists() or (root / "docker-compose.yml").exists(),
         "has_migrations": any("migrations" in Path(f["path"]).parts for f in files),
     }
-    return {
+    result: Dict[str, Any] = {
         "root": root.as_posix(),
         "ascii_tree": _ascii_tree(root),
         "tree": files,
@@ -256,7 +263,19 @@ def scan_repo(root_path: str | Path) -> Dict[str, Any]:
         "signals": signals,
     }
 
-# --------- NEW: Dependency graph extraction ----------
+    # ---- Optional important_files scoring ----
+    if top_n_important and select_top_files_local:
+        try:
+            top = select_top_files_local(str(root), top_n=top_n_important)
+            result["important_files"] = [rel for (rel, _) in top]
+        except Exception as e:
+            result["important_files_error"] = f"{type(e).__name__}: {e}"
+    elif top_n_important and not select_top_files_local:
+        result["important_files_error"] = "Scorer not available (score_repo_files.py not importable)."
+
+    return result
+
+# --------- Dependency graph extraction ----------
 _JS_TS_EXTS = {".js",".jsx",".ts",".tsx",".mjs",".cjs",".vue"}
 _PY_EXTS = {".py"}
 _JS_TS_INDEX_CANDIDATES = [
@@ -265,7 +284,6 @@ _JS_TS_INDEX_CANDIDATES = [
 _JS_TS_FILE_EXTS_TRY = [".ts",".tsx",".js",".jsx",".mjs",".cjs",".vue",".json"]
 _PY_FILE_EXTS_TRY = [".py","/__init__.py"]
 
-# Regexes for import detection
 RE_JS_IMPORTS = re.compile(
     r"""(?x)
     (?:import\s+[^'"]*\s+from\s+['"](?P<imp1>[^'"]+)['"])|
@@ -290,23 +308,19 @@ def _read_text(path: Path) -> str:
         return ""
 
 def _vue_script_block(text: str) -> str:
-    # grab content inside <script ...> ... </script> (basic)
     m = re.findall(r"<script[^>]*>(.*?)</script>", text, flags=re.DOTALL|re.IGNORECASE)
-    return "\n\n".join(m) if m else text  # fallback: whole file
+    return "\n\n".join(m) if m else text
 
 def _resolve_js_like(spec: str, src_file: Path, root: Path) -> Optional[Path]:
-    if not spec.startswith("."):  # ignore packages
+    if not spec.startswith("."):
         return None
     base = (src_file.parent / spec).resolve()
-    # if points to a file with ext
     if base.suffix and base.exists():
         return base
-    # try with extensions
     for ext in _JS_TS_FILE_EXTS_TRY:
         cand = Path(str(base) + ext)
         if cand.exists():
             return cand
-    # if points to a directory, try index.*
     if base.exists() and base.is_dir():
         for name in _JS_TS_INDEX_CANDIDATES:
             cand = base / name
@@ -315,10 +329,8 @@ def _resolve_js_like(spec: str, src_file: Path, root: Path) -> Optional[Path]:
     return None
 
 def _resolve_py_like(module: str, src_file: Path, root: Path) -> Optional[Path]:
-    # only handle relative like .foo or ..pkg.bar; skip absolute (no leading dot)
     if not module.startswith("."):
         return None
-    # Count leading dots
     dots = len(module) - len(module.lstrip("."))
     remainder = module[dots:]
     target_dir = src_file.parent
@@ -327,18 +339,15 @@ def _resolve_py_like(module: str, src_file: Path, root: Path) -> Optional[Path]:
     if remainder:
         parts = remainder.split(".")
         target_dir = target_dir.joinpath(*parts)
-    # try file.py or package/__init__.py
     for suffix in _PY_FILE_EXTS_TRY:
         cand = Path(str(target_dir) + suffix if suffix.startswith(".") else str(target_dir) + suffix)
         if cand.exists():
             return cand
     return None
 
-def _extract_imports_for_file(fpath: Path, root: Path) -> Iterable[Path]:
+def _extract_imports_for_file(fpath: Path, root: Path):
     text = _read_text(fpath)
     suffix = fpath.suffix.lower()
-
-    # Vue: parse <script> content only
     if suffix == ".vue":
         text = _vue_script_block(text)
 
@@ -347,32 +356,26 @@ def _extract_imports_for_file(fpath: Path, root: Path) -> Iterable[Path]:
             spec = m.group("imp1") or m.group("imp2") or m.group("imp3") or m.group("imp4") or m.group("imp5")
             if not spec:
                 continue
-            # only resolve relative imports like "./" or "../"
             tgt = _resolve_js_like(spec, fpath, root)
             if not tgt:
                 continue
-            # yield only if target is inside repo
             try:
-                return_rel = tgt.resolve().relative_to(root.resolve())
+                yield tgt.resolve().relative_to(root.resolve())
             except Exception:
                 continue
-            yield return_rel
 
     elif suffix in _PY_EXTS:
         for m in RE_PY_IMPORTS.finditer(text):
             spec = m.group("from") or m.group("imp")
             if not spec:
                 continue
-            # only resolve relative python imports like ".foo" or "..pkg.bar"
             tgt = _resolve_py_like(spec, fpath, root)
             if not tgt:
                 continue
             try:
-                return_rel = tgt.resolve().relative_to(root.resolve())
+                yield tgt.resolve().relative_to(root.resolve())
             except Exception:
                 continue
-            yield return_rel
-
 
 def build_dependency_graph(root_path: str | Path) -> Dict[str, Any]:
     """
@@ -380,7 +383,6 @@ def build_dependency_graph(root_path: str | Path) -> Dict[str, Any]:
     Only considers relative imports in JS/TS/Vue and Python files.
     """
     root = Path(root_path).resolve()
-    # collect candidate source files
     src_files: List[Path] = []
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if not _should_ignore_dir(d)]
@@ -398,12 +400,10 @@ def build_dependency_graph(root_path: str | Path) -> Dict[str, Any]:
         if rid not in node_ids:
             node_ids[rid] = {"id": rid, "label": rel.name}
 
-    # Add nodes for all source files
     for f in src_files:
         rel = f.relative_to(root)
         _add_node(rel)
 
-    # Extract edges
     for f in src_files:
         src_rel = f.relative_to(root)
         for tgt_rel in _extract_imports_for_file(f, root):
