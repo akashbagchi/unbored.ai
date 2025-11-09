@@ -13,7 +13,6 @@ function GraphClient() {
     fetch("/graph_with_pos.json").then(r=>r.json()).then(setG);
   }, []);
 
-  // Map JSON → ReactFlow elements (no layout; we trust x,y)
   const nodes = g.nodes.map(n => ({
     id: n.id,
     position: { x: n.x, y: n.y },
@@ -22,6 +21,7 @@ function GraphClient() {
       padding: 6, borderRadius: 12, background: "#fff",
       border: "1px solid #999", fontSize: 11,
     },
+    draggable: false,
   }));
 
   const edges = g.edges.map((e, i) => ({
@@ -31,22 +31,34 @@ function GraphClient() {
   }));
 
   return (
-    <div style={{ height: "85vh", borderRadius: 12, overflow: "hidden" }}>
+    <div
+      style={{
+        height: "calc(100vh - 0px)",   // full viewport height
+        width: "100%",                 // full width
+        borderRadius: 0,
+        overflow: "hidden",
+        background: "#fafafa",
+        borderTop: "1px solid #e9ecef",
+      }}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
         fitView
-        fitViewOptions={{ padding: 0.2 }}
+        fitViewOptions={{ padding: 0.12 }}  // small padding since the viewport is large
         panOnScroll
         zoomOnScroll
+        proOptions={{ hideAttribution: true }}
         onNodeClick={(_, node) => {
           const slug = node.id.replace(/[\/.]/g, "-");
           window.open(`/docs/${slug}`, "_self");
         }}
+        minZoom={0.2}
+        maxZoom={2}
       >
         <Background />
         <MiniMap pannable zoomable />
-        <Controls />
+        <Controls position="bottom-right" />
       </ReactFlow>
     </div>
   );
@@ -54,10 +66,9 @@ function GraphClient() {
 
 export default function GraphPage() {
   return (
-    <Layout title="Graph View" description="Precomputed layout (ReactFlow preset)">
-      <main style={{ maxWidth: 1100, margin: "0 auto", padding: "2rem 1rem" }}>
-        <h1>Graph View</h1>
-        <p style={{ opacity: 0.8 }}>Precomputed x/y — instant render, zero client layout.</p>
+    <Layout title="Graph View" description="Precomputed layout (spaced)">
+      {/* Full-bleed: remove maxWidth to let the canvas fill the page */}
+      <main style={{ margin: 0, padding: 0, maxWidth: "none" }}>
         <BrowserOnly>{() => <GraphClient />}</BrowserOnly>
       </main>
     </Layout>
