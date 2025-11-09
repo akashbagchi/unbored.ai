@@ -3,8 +3,8 @@ import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
-  title: 'Ghost Onboarder',
-  tagline: 'Turn any repo into a self-explaining codebase',
+  title: 'akashbagchi/modern-portfolio Documentation',
+  tagline: 'Auto-generated documentation for akashbagchi/modern-portfolio',
   favicon: 'img/favicon.ico',
 
   // ↓ Basic site URL setup for local/demo hosting
@@ -44,7 +44,7 @@ const config: Config = {
     },
 
     navbar: {
-      title: 'Ghost Onboarder',
+      title: 'akashbagchi/modern-portfolio Documentation',
       logo: {
         alt: 'Ghost Onboarder Logo',
         src: 'img/logo.svg',
