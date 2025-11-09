@@ -1,8 +1,8 @@
 # scripts/layout.py
 import json, networkx as nx, sys, math
 
-IN  = sys.argv[1] if len(sys.argv) > 1 else "claude-builder-2025/ghost-onboarder/ghost-onboarder-site/static/graph.json"
-OUT = sys.argv[2] if len(sys.argv) > 2 else "claude-builder-2025/ghost-onboarder/ghost-onboarder-site/static/graph_with_pos.json"
+IN  = sys.argv[1] if len(sys.argv) > 1 else "../ghost-onboarder-site/static/graph.json"
+OUT = sys.argv[2] if len(sys.argv) > 2 else "../ghost-onboarder-site/static/graph_with_pos.json"
 
 with open(IN) as f:
     data = json.load(f)
