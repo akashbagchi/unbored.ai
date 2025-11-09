@@ -218,9 +218,8 @@ npm run serve
 
 ## 🎉 Demo
 
-```bash
-🚧 TODO 🚧
-```
+- Pitch Deck: https://www.figma.com/deck/ryyAt60shYMnkMtUzyuecJ/unbored-presentation?node-id=7-506&viewport=-158%2C-121%2C0.72&t=tw2HYoP7KJmOaFKi-1&scaling=min-zoom&content-scaling=fixed&page-id=0%3A1
+- YouTube Demo: 
 
 ---
 
