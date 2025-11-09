@@ -1,46 +1,62 @@
-import json, networkx as nx, sys, math, os, re, fnmatch
-from math import log10, ceil
+"""
+Graph layout generator for Ghost Onboarder.
+
+Usage (CLI):
+    python generate_graph_position.py [INPUT_JSON] [OUTPUT_JSON]
+
+Programmatic:
+    from generate_graph_position import generate_graph_positions
+    generate_graph_positions("graph.json", "graph_with_pos.json")
+"""
+
+import json, networkx as nx, sys, math, os
+from math import log10
 from networkx.algorithms.community import greedy_modularity_communities
+from typing import Dict, Tuple, Any
 
 # ==== your existing filtering config can stay here if you merged earlier ====
 # (If you didn't add filters, you can ignore this section and feed a raw graph.json.)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def read_json(path):
-    with open(path) as f: return json.load(f)
+# ---------------- I/O helpers ---------------- #
 
-def write_json(path, obj):
-    with open(path, "w") as f: json.dump(obj, f, indent=2)
+def read_json(path: str) -> Dict[str, Any]:
+    with open(path) as f:
+        return json.load(f)
 
-def map_range(v, a, b, A, B):
-    return (A + B)/2 if a == b else A + (v - a) * (B - A) / (b - a)
+def write_json(path: str, obj: Dict[str, Any]) -> None:
+    with open(path, "w") as f:
+        json.dump(obj, f, indent=2)
+
+def map_range(v: float, a: float, b: float, A: float, B: float) -> float:
+    return (A + B) / 2 if a == b else A + (v - a) * (B - A) / (b - a)
 
 # ---------------- Layout helpers ---------------- #
 
-def adaptive_params(n):
+def adaptive_params(n: int) -> Tuple[float, float, float, int]:
     """
     Pick spring 'k', extra spread, min_dist, iterations based on graph size.
     Grows spacing & separation with n while keeping runtime reasonable.
     """
     n = max(1, n)
-    lg = max(0.0, log10(n))               # 10→1, 100→2, 1000→3...
-    k      = 1.8 / (n ** 0.5) * (1.0 + 0.15*lg)      # slightly stronger repel for large n
-    spread = 1.6 + 0.45 * lg                          # expand canvas for readability
-    min_d  = 80.0 + 22.0 * lg                         # raise no-clash distance
-    iters  = int(min(800, 220 + 4.0*n))               # more iterations for stability, capped
+    lg = max(0.0, log10(n))           # 10→1, 100→2, 1000→3...
+    k      = 1.8 / (n ** 0.5) * (1.0 + 0.15 * lg)   # slightly stronger repel for large n
+    spread = 1.6 + 0.45 * lg                         # expand canvas for readability
+    min_d  = 80.0 + 22.0 * lg                        # raise no-clash distance
+    iters  = int(min(800, 220 + 4.0 * n))            # more iterations for stability, capped
     return k, spread, min_d, iters
 
-def adaptive_viewport(n):
+def adaptive_viewport(n: int) -> Tuple[int, int]:
     """
     Scale viewport with size so labels don't pile up.
     Keeps ~16:9, grows gently with sqrt(n).
     """
     base_w, base_h = 1800.0, 950.0
-    s = min(2.2, max(1.0, (n/50.0) ** 0.5))           # 50 nodes ~= 1.0, 200 nodes ~= 2.0
-    return int(base_w*s), int(base_h*s)
+    s = min(2.2, max(1.0, (n / 50.0) ** 0.5))        # 50 nodes ~= 1.0, 200 nodes ~= 2.0
+    return int(base_w * s), int(base_h * s)
 
-def de_overlap(pos, min_dist, passes=3):
+def de_overlap(pos: Dict[str, Tuple[float, float]], min_dist: float, passes: int = 3):
     nodes_list = list(pos.keys())
     n = len(nodes_list)
     for _ in range(passes):
@@ -57,7 +73,7 @@ def de_overlap(pos, min_dist, passes=3):
                     pos[nodes_list[j]] = (xj + ox, yj + oy)
     return pos
 
-def normalize_box(subpos):
+def normalize_box(subpos: Dict[str, Tuple[float, float]]):
     xs = [p[0] for p in subpos.values()] or [0]
     ys = [p[1] for p in subpos.values()] or [0]
     minx, maxx = min(xs), max(xs)
@@ -65,11 +81,11 @@ def normalize_box(subpos):
     w = max(1e-6, maxx - minx)
     h = max(1e-6, maxy - miny)
     out = {}
-    for k,(x,y) in subpos.items():
-        out[k] = ((x - minx)/w - 0.5, (y - miny)/h - 0.5)  # centered in [-0.5,0.5]
+    for k, (x, y) in subpos.items():
+        out[k] = ((x - minx) / w - 0.5, (y - miny) / h - 0.5)  # centered in [-0.5,0.5]
     return out
 
-def pack_communities(G, iters, k_global):
+def pack_communities(G: nx.Graph, iters: int, k_global: float):
     """
     Community-aware packing:
       1) Find communities (greedy modularity).
@@ -83,7 +99,9 @@ def pack_communities(G, iters, k_global):
     comms = list(greedy_modularity_communities(G))
     if len(comms) <= 1:
         # fall back to global layout
-        return nx.spring_layout(G, k=k_global, iterations=iters, seed=42, center=(0.0,0.0), dim=2)
+        return nx.spring_layout(
+            G, k=k_global, iterations=iters, seed=42, center=(0.0, 0.0), dim=2
+        )
 
     # Layout each community
     sub_positions = {}
@@ -91,34 +109,51 @@ def pack_communities(G, iters, k_global):
     for c in comms:
         H = G.subgraph(c).copy()
         k_local = 1.6 / (max(1, H.number_of_nodes()) ** 0.5)
-        subpos = nx.spring_layout(H, k=k_local, iterations=max(200, iters//2), seed=42, center=(0.0,0.0), dim=2)
+        subpos = nx.spring_layout(
+            H,
+            k=k_local,
+            iterations=max(200, iters // 2),
+            seed=42,
+            center=(0.0, 0.0),
+            dim=2,
+        )
         subpos = normalize_box(subpos)
         sub_positions[len(sizes)] = (H, subpos)
         sizes.append(H.number_of_nodes())
 
     # Place community centers on a circle proportional to their sizes
     K = len(comms)
-    angle_step = 2*math.pi / K
+    angle_step = 2 * math.pi / K
     R = 8.0 + 0.8 * (sum(sizes) ** 0.5)  # radius grows with total size
 
     pos = {}
     for idx, (H, subpos) in sub_positions.items():
         theta = idx * angle_step
-        cx, cy = R*math.cos(theta), R*math.sin(theta)
+        cx, cy = R * math.cos(theta), R * math.sin(theta)
         # scale each sub-layout box according to comm size so larger comms get more space
         scale = 6.0 + 0.35 * (H.number_of_nodes() ** 0.5)
         for n, (x, y) in subpos.items():
-            pos[n] = (cx + x*scale, cy + y*scale)
+            pos[n] = (cx + x * scale, cy + y * scale)
 
     return pos
 
-# ---------------- Main ---------------- #
+# ---------------- Public API ---------------- #
 
-def main():
-    IN  = sys.argv[1] if len(sys.argv) > 1 else os.path.join(BASE_DIR, "../ghost-onboarder-site/static/graph.json")
-    OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(BASE_DIR, "../ghost-onboarder-site/static/graph_with_pos.json")
+def generate_graph_positions(
+    in_path: str,
+    out_path: str,
+    *,
+    community_threshold: int = 60
+) -> None:
+    """
+    Read a graph JSON (nodes: [{id,label?}], edges: [{source,target}]),
+    compute positions, and write an augmented JSON with x,y per node.
 
-    data = read_json(IN)
+    :param in_path:  Path to input graph.json
+    :param out_path: Path to output graph_with_pos.json
+    :param community_threshold: Use community packing when n >= this value
+    """
+    data = read_json(in_path)
 
     # Build graph from current JSON as-is (assuming nodes:{id}, edges:{source,target})
     G = nx.Graph()
@@ -135,11 +170,12 @@ def main():
     k, spread, min_dist, iterations = adaptive_params(n)
 
     # --- Choose layout strategy ---
-    if n >= 60:
-        # community pack for larger graphs
+    if n >= community_threshold:
         pos = pack_communities(G, iterations, k)
     else:
-        pos = nx.spring_layout(G, k=k, iterations=iterations, seed=42, center=(0.0, 0.0), dim=2)
+        pos = nx.spring_layout(
+            G, k=k, iterations=iterations, seed=42, center=(0.0, 0.0), dim=2
+        )
 
     # Scale out a bit
     for node in pos:
@@ -160,18 +196,37 @@ def main():
     for nobj in data.get("nodes", []):
         nid = nobj["id"]
         x, y = pos.get(nid, (0.0, 0.0))
-        nodes_out.append({
-            "id": nid,
-            "label": nobj.get("label", nid),
-            "x": map_range(x, minx, maxx, -WIDTH/2,  WIDTH/2),
-            "y": map_range(y, miny, maxy, -HEIGHT/2, HEIGHT/2),
-        })
+        nodes_out.append(
+            {
+                "id": nid,
+                "label": nobj.get("label", nid),
+                "x": map_range(x, minx, maxx, -WIDTH / 2, WIDTH / 2),
+                "y": map_range(y, miny, maxy, -HEIGHT / 2, HEIGHT / 2),
+            }
+        )
 
     out = {"nodes": nodes_out, "edges": data.get("edges", [])}
-    write_json(OUT, out)
+    write_json(out_path, out)
 
-    print(f"Wrote {OUT} with {len(nodes_out)} nodes / {len(out['edges'])} edges.")
-    print(f"Params: n={n}, k={k:.4f}, spread={spread:.2f}, min_dist={min_dist:.1f}, iters={iterations}, viewport={WIDTH}x{HEIGHT}")
+    print(
+        f"Wrote {out_path} with {len(nodes_out)} nodes / {len(out['edges'])} edges."
+    )
+    print(
+        f"Params: n={n}, k={k:.4f}, spread={spread:.2f}, min_dist={min_dist:.1f}, "
+        f"iters={iterations}, viewport={WIDTH}x{HEIGHT}, "
+        f"strategy={'communities' if n >= community_threshold else 'spring'}"
+    )
+
+# ---------------- CLI entrypoint ---------------- #
+
+def main():
+    IN  = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
+        BASE_DIR, "../ghost-onboarder-site/static/graph.json"
+    )
+    OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(
+        BASE_DIR, "../ghost-onboarder-site/static/graph_with_pos.json"
+    )
+    generate_graph_positions(IN, OUT)
 
 if __name__ == "__main__":
     main()

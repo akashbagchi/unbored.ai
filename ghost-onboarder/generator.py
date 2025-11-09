@@ -12,6 +12,7 @@ import argparse
 from cli.scanner import scan_repo, build_dependency_graph
 from cli.github_client import GitHubClient, keyword_filter
 from cli.main import _write_jsonl, _iter_jsonl_records
+from cli.generate_graph_position import generate_graph_positions
 
 def generate_all(repo_path: str, output_dir: str = "outputs",
                     gh_repo: str | None = None, gh_token: str | None = None,
@@ -36,6 +37,11 @@ def generate_all(repo_path: str, output_dir: str = "outputs",
     graph_file = output_path / "scanl.jsonl.graph.json"
     graph_file.write_text(json.dumps(graph, indent=2))
     print(f"✅ Generated {graph_file}")
+    here = Path(__file__).parent.resolve()
+    in_path  = here / "outputs/scanl.jsonl.graph.json"
+    out_path = here / "./ghost-onboarder-site/static/graph_with_pos.json"
+    generate_graph_positions(str(in_path), str(out_path))
+    print(f"✅ Visualised graph with edges and nodes")
 
     if gh_repo and issues_limit > 0:
         print(f"🐙 3/4 Fetching GitHub issues...")
