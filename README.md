@@ -1,4 +1,4 @@
-# Ghost Onboarder
+# unbored.AI
 
 **Automated onboarding documentation generator that transforms any GitHub repository into a comprehensive documentation site with AI-generated architecture overviews.**
 
