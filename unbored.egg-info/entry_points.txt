@@ -1,0 +1,2 @@
+[console_scripts]
+unbored = unbored.cli:main
