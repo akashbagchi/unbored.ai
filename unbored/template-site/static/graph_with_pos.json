@@ -1,0 +1,144 @@
+{
+  "nodes": [
+    {
+      "id": "ghost-onboarder/generator.py",
+      "label": "generator.py",
+      "x": 181.46269844398898,
+      "y": 123.42966375563537
+    },
+    {
+      "id": "ghost-onboarder/setup.py",
+      "label": "setup.py",
+      "x": 129.42484025618523,
+      "y": -73.06075842102717
+    },
+    {
+      "id": "ghost-onboarder/ghost-onboarder-site/docusaurus.config.ts",
+      "label": "docusaurus.config.ts",
+      "x": -202.40570175709695,
+      "y": -139.76604741028876
+    },
+    {
+      "id": "ghost-onboarder/ghost-onboarder-site/sidebars.ts",
+      "label": "sidebars.ts",
+      "x": -647.74849386666,
+      "y": -62.541018449563296
+    },
+    {
+      "id": "ghost-onboarder/ghost-onboarder-site/src/components/HomepageFeatures/index.tsx",
+      "label": "index.tsx",
+      "x": -68.65101721370911,
+      "y": -336.0826419647088
+    },
+    {
+      "id": "ghost-onboarder/ghost-onboarder-site/src/pages/index.tsx",
+      "label": "index.tsx",
+      "x": -181.37074554481546,
+      "y": 257.86072008831604
+    },
+    {
+      "id": "ghost-onboarder/ghost-onboarder-site/src/pages/graph.tsx",
+      "label": "graph.tsx",
+      "x": 285.38500689659713,
+      "y": -334.9743708104845
+    },
+    {
+      "id": "ghost-onboarder/cli/generate_graph_position.py",
+      "label": "generate_graph_position.py",
+      "x": -900.0,
+      "y": -79.28179878764911
+    },
+    {
+      "id": "ghost-onboarder/cli/scanner.py",
+      "label": "scanner.py",
+      "x": 296.79764061035826,
+      "y": 308.4947265189792
+    },
+    {
+      "id": "ghost-onboarder/cli/score_repo_files.py",
+      "label": "score_repo_files.py",
+      "x": -190.32785841428824,
+      "y": -426.64060395926646
+    },
+    {
+      "id": "ghost-onboarder/cli/__init__.py",
+      "label": "__init__.py",
+      "x": 124.93332774639134,
+      "y": -475.0
+    },
+    {
+      "id": "ghost-onboarder/cli/prompts.py",
+      "label": "prompts.py",
+      "x": -267.11900868692294,
+      "y": -87.42395124918062
+    },
+    {
+      "id": "ghost-onboarder/cli/cli.py",
+      "label": "cli.py",
+      "x": 505.76251999822193,
+      "y": 47.70011195185407
+    },
+    {
+      "id": "ghost-onboarder/cli/main.py",
+      "label": "main.py",
+      "x": 59.75534319061296,
+      "y": 152.47655595038293
+    },
+    {
+      "id": "ghost-onboarder/cli/github_client.py",
+      "label": "github_client.py",
+      "x": -674.9238310248421,
+      "y": -455.52323063968527
+    },
+    {
+      "id": "ghost-onboarder/cli/lambda_function.py",
+      "label": "lambda_function.py",
+      "x": 130.17222780530597,
+      "y": -130.28321776071607
+    },
+    {
+      "id": "ghost-onboarder/cli/claude_client.py",
+      "label": "claude_client.py",
+      "x": -110.52690777495434,
+      "y": 475.0
+    },
+    {
+      "id": "ghost-onboarder/cli/test/minimal_test.py",
+      "label": "minimal_test.py",
+      "x": 900.0,
+      "y": 99.48526682530792
+    },
+    {
+      "id": "ghost-onboarder/cli/test/test_client.py",
+      "label": "test_client.py",
+      "x": -614.0193884954331,
+      "y": -237.75283177179736
+    },
+    {
+      "id": "ghost-onboarder/ghost-onboarder-site/src/components/HomepageFeatures/styles.module.css",
+      "label": "styles.module.css",
+      "x": 601.3987690137171,
+      "y": -170.99349915384352
+    },
+    {
+      "id": "ghost-onboarder/ghost-onboarder-site/src/pages/index.module.css",
+      "label": "index.module.css",
+      "x": -416.10503771631255,
+      "y": 125.32077732422181
+    }
+  ],
+  "edges": [
+    {
+      "source": "ghost-onboarder/ghost-onboarder-site/src/components/HomepageFeatures/index.tsx",
+      "target": "ghost-onboarder/ghost-onboarder-site/src/components/HomepageFeatures/styles.module.css"
+    },
+    {
+      "source": "ghost-onboarder/ghost-onboarder-site/src/pages/index.tsx",
+      "target": "ghost-onboarder/ghost-onboarder-site/src/pages/index.module.css"
+    },
+    {
+      "source": "ghost-onboarder/cli/cli.py",
+      "target": "ghost-onboarder/generator.py"
+    }
+  ]
+}
