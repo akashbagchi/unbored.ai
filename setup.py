@@ -16,7 +16,7 @@ setup(
     install_requires=requirements,
     entry_points={
         'console_scripts': [
-            'unbored me=unbored.cli:main',
+            'unbored=unbored.cli:main',
         ],
     },
     include_package_data=True,
