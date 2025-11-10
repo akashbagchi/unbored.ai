@@ -12,3 +12,4 @@ ghost-onboarder/.DS_Store
 ghost-onboarder/ghost-onboarder-site/node_modules
 ghost-onboarder/ghost-onboarder-site/static/*.json
 ghost-onboarder/ghost-onboarder-site/docs/intro.md
+.ghost-onboarder/
