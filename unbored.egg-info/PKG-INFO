@@ -13,7 +13,7 @@ Requires-Python: >=3.8
 Requires-Dist: networkx==3.2.1
 Requires-Dist: numpy==1.26.4
 Requires-Dist: pythonx==0.0.2
-Requires-Dist: scipy==1.13.1
+Requires-Dist: scipy>=1.13.1
 Requires-Dist: typer==0.9.0
 Requires-Dist: PyGithub==2.1.1
 Requires-Dist: anthropic==0.18.1
