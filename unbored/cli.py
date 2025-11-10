@@ -4,12 +4,33 @@ unBored AI — One command onboarding documentation generator
 
 import os
 import sys
-import json
 import webbrowser
 import subprocess
 from pathlib import Path
-from .scanner import scan_repo, build_dependency_graph
 from .generator import generate_all, send_to_claude, update_existing_site
+
+def update_gitignore(repo_path):
+    """Add .unbored to .gitignore if not already present"""
+    gitignore_path = Path(repo_path) / ".gitignore"
+
+    # Read existing content
+    content = ""
+    if gitignore_path.exists():
+        content = gitignore_path.read_text()
+        if ".unbored" in content:
+            return  # Already there
+
+    # Add .unbored to .gitignore
+    try:
+        with open(gitignore_path, "a") as f:
+            # Add newline before if file doesn't end with one
+            if content and not content.endswith("\n"):
+                f.write("\n")
+            f.write("# unbored.AI generated documentation\n")
+            f.write(".unbored/\n")
+        print("✅ Added .unbored/ to .gitignore")
+    except Exception as e:
+        print(f"⚠️  Could not update .gitignore: {e}")
 
 def main():
     """Main CLI entry point - runs from current directory"""
@@ -52,6 +73,9 @@ def main():
     # Create output directory
     output_dir.mkdir(exist_ok=True)
 
+    # Add .unbored to .gitignore
+    update_gitignore(repo_path)
+
     # Copy template site if needed
     if not site_dir.exists():
         print("📦 Setting up documentation site...")
@@ -91,11 +115,10 @@ def main():
                 print("\n🚀 Starting documentation server...")
                 print(f"📖 Opening documentation at http://localhost:3000")
 
-                # Open browser
-                webbrowser.open("http://localhost:3000")
-
                 # Start npm
                 subprocess.run(["npm", "start"], cwd=site_dir)
+
+                print("\n\nℹ️ Once done reading the documentation docs, use Ctrl+C to stop the docusaurus server!")
             else:
                 print("\n✅ Documentation generated in:", output_dir)
         else:
