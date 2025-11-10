@@ -31,7 +31,9 @@ def main():
             url = result.stdout.strip()
             # Extract username/repo from git URL
             if "github.com" in url:
-                parts = url.split("github.com")[1].strip("/").replace(".git", "")
+                parts = url.split("github.com")[-1]
+                parts = parts.lstrip(":/").rstrip("/")
+                parts = parts.replace(".git", "")
                 repo_name = parts
     except:
         pass
@@ -44,7 +46,7 @@ def main():
     # Determine paths relative to this package installation
     package_dir = Path(__file__).parent
     template_site = package_dir / "template-site"
-    output_dir = Path(repo_path) / ".ghost-onboarder"
+    output_dir = Path(repo_path) / ".unbored"
     site_dir = output_dir / "site"
 
     # Create output directory

@@ -40,9 +40,8 @@ def generate_all(repo_path: str, output_dir: str = "outputs",
     graph_file.write_text(json.dumps(graph, indent=2))
     print(f"✅ Generated {graph_file}")
 
-    here = Path(__file__).parent.resolve()
-    in_path  = here / "outputs/scan.jsonl.graph.json"
-    out_path = here / "./ghost-onboarder-site/static/graph_with_pos.json"
+    in_path  = Path(output_dir) / "scan.jsonl.graph.json"
+    out_path = Path(output_dir).parent / "site" / "static" / "graph_with_pos.json"
     generate_graph_positions(str(in_path), str(out_path))
     print(f"✅ Visualised graph with edges and nodes")
 
