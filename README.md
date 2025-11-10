@@ -7,25 +7,27 @@
 Generate beautiful documentation for any repository in 3 steps:
 
 ```bash
-# 1. Scan and generate documentation
-python generator.py ../path/to/repo username/repo-name
+# 1. Install unbored
+pip install unbored
 
-# 2. Start the documentation site
-cd ghost-onboarder-site
-npm run build
-npm run serve
+# 2. Navigate to your repository
+cd /path/to/your/repo
 
-# 3. View at http://localhost:3000
+# 3. Generate and view onboarding documentation
+unbored
+
+# That's it! Opens documentation at http://localhost:3000
 ```
 
-> [!WARNING]
-> Parts of this README have been generated with the help of LLMs. There may be inconsistencies or errors.
->
-> Please post an issue if you find an issue in the documentation
+Our tool automatically:
+- Scans your repository structure
+- Generates AI-powered onboarding documentation
+- Creates an interactive documentation website
+- Opens it in your browser
 
 ## 🎯 What It Does
 
-Ghost Onboarder automatically creates:
+unbored.AI automatically creates:
 
 - **📋 Architecture Overview**: AI-generated explanation of system design, tech stack, and component responsibilities
 - **🗂️ Interactive Graph View**: Visual representation of repository structure and dependencies
@@ -49,112 +51,87 @@ Repository → Scanner → Claude AI → Documentation Site
 ## 📁 Project Structure
 
 ```
-ghost-onboarder/
-├── cli/                          # Core scanning tools
-│   ├── main.py                  # Repository scanner
-│   ├── scanner.py               # File analysis logic
-│   └── claude_client.py         # Claude API integration
-├── generator.py                 # 🔥 Main pipeline script
-├── ghost-onboarder-site/        # Docusaurus documentation site
-│   ├── docs/intro.md           # Auto-generated architecture overview
-│   ├── src/pages/graph.tsx     # Interactive repository graph
-│   └── ...
-└── outputs/                     # Generated scan results
-    ├── scan.jsonl              # Repository analysis
-    └── scan.jsonl.graph.json   # Dependency graph data
+unbored.ai/
+├── unbored/                            # Core package
+│   ├── template_site/                  # Docusaurus template
+│   ├── claude_client.py
+│   ├── cli.py                          # Main CLI entry point (unbored command)
+│   ├── generate_graph_positions.py     # Graph layout
+│   ├── generator.py
+│   ├── github_client.py
+│   ├── main_old.py
+│   └── scanner.py                      # Repository analysis
+├── MANIFEST.in
+├── README.md
+├── requirements.txt
+└── setup.py
 ```
 
 ## 🛠️ Installation
 
-### Prerequisites
-- Python 3.8+
-- Node.js 16+
-- npm
-
-### Setup
 ```bash
-# Clone repository
-git clone <ghost-onboarder-repo>
-cd ghost-onboarder
-
-# Install Python dependencies
-pip install -r requirements.txt
-
-# Install documentation site dependencies
-cd ghost-onboarder-site
-npm install
-cd ..
+pip install unbored
 ```
+
+**Requirements:**
+- Python 3.8+
+- Node.js 16+ (for documentation site)
+- Git (for repository detection)
 
 ## 📖 Usage
 
-### Basic Usage
+### Basic Usage (Recommended)
 
 ```bash
-python generator.py <repo_path> <repo_name> [site_path]
+cd your-project
+unbored
 ```
 
-**Parameters:**
-- `repo_path`: Path to repository to analyze
-- `repo_name`: Repository name (e.g., "username/repo-name")
-- `site_path`: Documentation site path (default: "ghost-onboarder-site")
+### Advanced: Manual Pipeline
 
-**Example:**
+If you need more control:
 ```bash
-python generator.py ../my-project johndoe/my-project
-```
+# 1. Generate scan data
+python -m unbored.main_old --repo . --out .unbored/scan.jsonl
 
-### Advanced Usage
+# 2. Generate dependency graph
+# (automatically created as scan.jsonl.graph.json)
 
-#### Just Generate Scan Data
-```bash
-python cli/main.py --repo ../my-project --format jsonl --out outputs/scan.jsonl
-```
-
-#### Manual Claude API Call
-```bash
-python cli/claude_client.py outputs/scan.jsonl johndoe/my-project
-```
-
-#### Start Documentation Site
-```bash
-cd ghost-onboarder-site
-npm run build
-npm run serve
+# 3. Generate documentation
+python -m unbored.claude_client .unbored/scan.jsonl your-username/repo-name
 ```
 
 ## 🔧 Configuration
 
-### Claude API Setup
+> [!WARNING]
+> This tool currently uses a pre-configured AWS Lambda endpoint set-up by one of our core developers. This is subject to change at any time due to cost constraints, which would require users to provide their own endpoints and/or API keys. Please be mindful of the same with your usage.
+
+### API Setup
 The pipeline uses a pre-configured AWS Lambda endpoint. No additional API key setup required.
 
-### Customizing the Documentation Site
+### Customization
+All generated files are in `.unbored/` directory (automatically added to `.gitignore`):
+- Modify `site/docs/` for custom documentation pages
+- Edit `site/docusaurus.config.ts` for site customization
+- Update `outputs/` for raw analysis data
 
-**Update Site Title/Theme:**
-Edit `ghost-onboarder-site/docusaurus.config.ts`
+## 📂 Output Structure
 
-**Add Custom Pages:**
-Add files to `ghost-onboarder-site/docs/`
+Running `unbored` creates a `./unbored/` directory in your repository:
 
-**Modify Graph View:**
-Edit `ghost-onboarder-site/src/pages/graph.tsx`
-
-## 📊 Example Output
-
-### Before
 ```
-my-complex-repo/
-├── src/
-├── components/
-├── utils/
-├── package.json
-└── README.md (minimal)
+.unbored/
+├── outputs/
+│   ├── scan.jsonl              # Repository analysis
+│   ├── scan.jsonl.graph.json   # Dependency graph
+│   └── scan.issues.jsonl       # GitHub issues (if available)
+└── site/                       # Docusaurus documentation site
+    ├── docs/intro.md           # AI-generated architecture overview
+    ├── src/pages/graph.tsx     # Interactive dependency graph
+    └── static/graph_with_pos.json  # Graph visualization data
 ```
 
-### After
-- **📋 Architecture Overview**: "This React application follows a component-based architecture with Redux for state management..."
-- **🖼️ Interactive Graph**: Visual nodes showing file relationships
-- **🔍 Searchable Docs**: Full-text search across all documentation
+**Note:** `.unbored/` is automatically added to your `.gitignore`
 
 ## 🎯 Use Cases
 
@@ -169,6 +146,8 @@ my-complex-repo/
 - Python (scanning, API integration)
 - Claude AI (Anthropic Sonnet 4)
 - AWS Lambda (Claude API proxy)
+- NetworkX (graph analysis)
+- Typer (CLI framework)
 
 **Documentation Site:**
 - Docusaurus (React-based)
@@ -181,15 +160,10 @@ my-complex-repo/
 
 ## 🚧 Development
 
-### Running Tests
-```bash
-python -m pytest tests/
-```
-
 ### Development Mode
 ```bash
 # Start site in development mode
-cd ghost-onboarder-site
+cd template_site
 npm run start
 
 # Build for production
@@ -212,8 +186,23 @@ npm run serve
 
 ## 📜 License
 
-```bash
-🚧 TODO 🚧
+MIT License with Attribution Requirement
+
+Copyright (c) 2025 Akash Bagchi, Akshaya Nadathur, Pranjal Padakannaya, Sachin SS
+
+This project is open source under the MIT License with an attribution requirement.
+See [LICENSE](LICENSE) for full details.
+
+**Attribution Requirement:** When using, modifying, or distributing this software,
+you must include clear attribution to the original authors and link to this repository.
+
+### How to Attribute
+
+In your documentation, README, or about page, include:
+```
+Documentation generated using unbored.AI
+Created by Akash Bagchi, Akshaya Nadathur, Pranjal Padakannaya, Sachin SS
+https://github.com/akashbagchi/unbored.ai
 ```
 
 ## 🎉 Demo
