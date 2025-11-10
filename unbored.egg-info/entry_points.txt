@@ -1,0 +1,2 @@
+[console_scripts]
+onboard = unbored.cli:main
