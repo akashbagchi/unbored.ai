@@ -2,10 +2,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import sys
-from cli.github_client import GitHubClient, keyword_filter
+from .github_client import GitHubClient, keyword_filter
 import argparse
 from typing import Iterable, Dict, Any, List, Optional
-from cli.scanner import scan_repo, build_dependency_graph
+from .scanner import scan_repo, build_dependency_graph
 
 # ---------- Human-readable summary ----------
 def _summarize_human(data: dict) -> str:

@@ -9,7 +9,7 @@ import webbrowser
 import subprocess
 from pathlib import Path
 from .scanner import scan_repo, build_dependency_graph
-from .generator import generate_all, generate_onboarding_doc, update_existing_site
+from .generator import generate_all, send_to_claude, update_existing_site
 
 def main():
     """Main CLI entry point - runs from current directory"""
@@ -76,7 +76,7 @@ def main():
 
         if scan_file.exists():
             print("\n🤖 4/4 Generating documentation with Claude AI...")
-            onboarding_doc = generate_onboarding_doc(
+            onboarding_doc = send_to_claude(
                 scan_file=str(scan_file),
                 repo_name=repo_name,
                 graph_file=str(graph_file) if graph_file.exists() else None
