@@ -70,7 +70,7 @@ unbored.ai/
 ## 🛠️ Installation
 
 ```bash
-pip install unbored
+pip install git+https://github.com/akashbagchi/unbored.ai.git@v0.2.0
 ```
 
 **Requirements:**
