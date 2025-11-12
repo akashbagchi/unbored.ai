@@ -6,6 +6,7 @@ import os
 import sys
 import webbrowser
 import subprocess
+import argparse
 from pathlib import Path
 from .generator import generate_all, send_to_claude, update_existing_site
 
@@ -34,6 +35,16 @@ def update_gitignore(repo_path):
 
 def main():
     """Main CLI entry point - runs from current directory"""
+
+    parser = argparse.ArgumentParser(
+            description="unbored.AI - Generate onboarding documentation for any repository"
+    )
+    parser.add_argument(
+            "--skip_github",
+            action="store_true",
+            help="Skip GitHub issues discovery (useful for private repos without access tokens)"
+    )
+    args = parser.parse_args()
 
     # Get current working directory
     repo_path = os.getcwd()
@@ -93,7 +104,8 @@ def main():
         generate_all(
                 repo_path = repo_path,
                 output_dir = str(output_dir / "outputs"),
-                gh_repo=repo_name
+                gh_repo=repo_name if not args.skip_github else None,
+                skip_github=args.skip_github
         )
 
         # Send to Claude and get documentation

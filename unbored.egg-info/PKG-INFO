@@ -10,6 +10,7 @@ Classifier: Programming Language :: Python :: 3.9
 Classifier: Programming Language :: Python :: 3.10
 Classifier: Programming Language :: Python :: 3.11
 Requires-Python: >=3.8
+License-File: LICENSE
 Requires-Dist: networkx==3.2.1
 Requires-Dist: numpy==1.26.4
 Requires-Dist: pythonx==0.0.2
@@ -23,6 +24,7 @@ Requires-Dist: rich==13.7.0
 Requires-Dist: gitpython==3.1.40
 Dynamic: author
 Dynamic: classifier
+Dynamic: license-file
 Dynamic: requires-dist
 Dynamic: requires-python
 Dynamic: summary

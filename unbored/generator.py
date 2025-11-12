@@ -18,8 +18,20 @@ LAMBDA_ENDPOINT = "https://vd03y9yw0g.execute-api.us-east-1.amazonaws.com/prod/c
 
 def generate_all(repo_path: str, output_dir: str = "outputs",
                     gh_repo: str | None = None, gh_token: str | None = None,
-                    issues_limit: int = 50, issues_keywords: list | None = None):
-    """Single command to generate all outputs"""
+                    issues_limit: int = 50, issues_keywords: list | None = None,
+                    skip_github: bool = False):
+    """
+    Single command to generate all outputs
+
+    Args:
+        repo_path: Path to repository
+        output_dir: Output directory for generated files
+        gh_repo: GitHub repo in owner/name format (Optional)
+        gh_token: Github token for private repos (Optional)
+        issues_limit: Number of issues to fetch
+        issues_keywords: Keywords for filtering issues
+        skip_github: Skip GitHub issues discover entirely
+    """
 
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True)
@@ -46,19 +58,43 @@ def generate_all(repo_path: str, output_dir: str = "outputs",
     print(f"✅ Visualised graph with edges and nodes")
 
     issues_file = None
-    if gh_repo and issues_limit > 0:
-        print(f"🐙 3/4 Fetching GitHub issues...")
-        client = GitHubClient(token=gh_token)
-        raw_issues = client.fetch_closed_issues(gh_repo, limit=issues_limit, include_body=True)
-        filtered = keyword_filter(raw_issues, issues_keywords or [], min_hits=1)
-
-        issues_file = output_path / "scan.issues.jsonl"
-        with open(issues_file, 'w') as f:
-            for issue in filtered:
-                f.write(json.dumps(issue) + '\n')
-        print(f"✅ Generated {issues_file}")
+    if skip_github:
+        print("⏭️ 3/4 Skipping GitHub issues (--skip_github flag set)")
+    elif not gh_repo:
+        print("⏭️ 3/4 Skipping GitHub issues (no repository name detected)")
+    elif issues_limit <= 0:
+        print("⏭️ 3/4 Skipping GitHub issues (issues_limit = 0)")
     else:
-        print("⏭️ 3/4 Skipping issues (not configured)")
+        print(f"🐙 3/4 Fetching GitHub issues...")
+        try:
+            client = GitHubClient(token=gh_token)
+            raw_issues = client.fetch_closed_issues(gh_repo, limit=issues_limit, include_body=True)
+            filtered = keyword_filter(raw_issues, issues_keywords or [], min_hits=1)
+
+            issues_file = output_path / "scan.issues.jsonl"
+            with open(issues_file, 'w') as f:
+                for issue in filtered:
+                    f.write(json.dumps(issue) + '\n')
+            print(f"✅ Generated {issues_file}")
+
+        except ValueError as e:
+            # Repository not found - likely private without token
+            print(f"⚠️ Warning: Could not access GitHub repository: {e}")
+            print("   💡 For private repos:")
+            print("      - Use --skip-github flag to skip issues")
+            print("      - Or set GITHUB_TOKEN environment variable")
+            print("   ⏭️  Continuing without GitHub issues...")
+
+        except RuntimeError as e:
+            # GitHub API error
+            print(f"⚠️  Warning: GitHub API error: {e}")
+            print("   ⏭️  Continuing without GitHub issues...")
+
+        except Exception as e:
+            # Catch-all for unexpected errors
+            print(f"⚠️  Warning: Unexpected error fetching issues: {e}")
+            print("   ⏭️  Continuing without GitHub issues...")
+
 
     print("🤖 4/4 Generating documentation with Claude...")
     # Pass all file paths to send_to_claude
