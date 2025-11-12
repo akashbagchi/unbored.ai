@@ -95,7 +95,6 @@ def generate_all(repo_path: str, output_dir: str = "outputs",
             print(f"⚠️  Warning: Unexpected error fetching issues: {e}")
             print("   ⏭️  Continuing without GitHub issues...")
 
-
     print("🤖 4/4 Generating documentation with Claude...")
     # Pass all file paths to send_to_claude
     onboarding_doc = send_to_claude(

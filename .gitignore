@@ -6,10 +6,11 @@ tmprepo/
 ghost-onboarder/.venv
 ghost-onboarder/.DS_Store
 ../.DS_Store
-<<<<<<< HEAD
 **/cli/test/
-=======
 ghost-onboarder/ghost-onboarder-site/node_modules
 ghost-onboarder/ghost-onboarder-site/static/*.json
 ghost-onboarder/ghost-onboarder-site/docs/intro.md
 .unbored/
+/dist/
+/build/
+*.egg-info/
