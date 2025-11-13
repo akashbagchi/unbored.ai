@@ -4,7 +4,6 @@ unBored AI — One command onboarding documentation generator
 
 import os
 import sys
-import webbrowser
 import subprocess
 import argparse
 from pathlib import Path
@@ -113,7 +112,6 @@ def main():
         graph_file = output_dir / "outputs" / "scan.jsonl.graph.json"
 
         if scan_file.exists():
-            print("\n🤖 4/4 Generating documentation with Claude AI...")
             onboarding_doc = send_to_claude(
                 scan_file=str(scan_file),
                 repo_name=repo_name,

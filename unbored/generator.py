@@ -6,6 +6,7 @@ Usage: python generator.py <repo_path> <repo_name> [site_path]
 import json
 import subprocess
 import sys
+from github.Label import Label
 import requests
 from pathlib import Path
 import argparse
@@ -36,7 +37,7 @@ def generate_all(repo_path: str, output_dir: str = "outputs",
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True)
 
-    print("🔍 1/4 Scanning repository...")
+    print("\n🔍 1/4 Scanning repository...")
     scan_data = scan_repo(repo_path)
 
     # Write scan.jsonl
@@ -46,7 +47,7 @@ def generate_all(repo_path: str, output_dir: str = "outputs",
             f.write(json.dumps(record) + '\n')
     print(f"✅ Generated {scan_file}")
 
-    print("📊 2/4 Building Dependency Graph...")
+    print("\n📊 2/4 Building Dependency Graph...")
     graph = build_dependency_graph(repo_path)
     graph_file = output_path / "scan.jsonl.graph.json"  # Fixed typo: was scanl.jsonl.graph.json
     graph_file.write_text(json.dumps(graph, indent=2))
@@ -59,17 +60,19 @@ def generate_all(repo_path: str, output_dir: str = "outputs",
 
     issues_file = None
     if skip_github:
-        print("⏭️ 3/4 Skipping GitHub issues (--skip_github flag set)")
+        print("\n⏭️ 3/4 Skipping GitHub issues (--skip_github flag set)")
     elif not gh_repo:
-        print("⏭️ 3/4 Skipping GitHub issues (no repository name detected)")
+        print("\n⏭️ 3/4 Skipping GitHub issues (no repository name detected)")
     elif issues_limit <= 0:
-        print("⏭️ 3/4 Skipping GitHub issues (issues_limit = 0)")
+        print("\n⏭️ 3/4 Skipping GitHub issues (issues_limit = 0)")
     else:
-        print(f"🐙 3/4 Fetching GitHub issues...")
+        print(f"\n🐙 3/4 Fetching GitHub issues...")
         try:
+            from .github_client import DEFAULT_KEYWORDS
+            keywords = issues_keywords if issues_keywords else DEFAULT_KEYWORDS['body'] + DEFAULT_KEYWORDS['labels']
             client = GitHubClient(token=gh_token)
-            raw_issues = client.fetch_closed_issues(gh_repo, limit=issues_limit, include_body=True)
-            filtered = keyword_filter(raw_issues, issues_keywords or [], min_hits=1)
+            raw_issues = client.fetch_all_issues(gh_repo, limit=issues_limit, include_body=True)
+            filtered = keyword_filter(raw_issues, keywords, min_hits=1)
 
             issues_file = output_path / "scan.issues.jsonl"
             with open(issues_file, 'w') as f:
@@ -95,7 +98,7 @@ def generate_all(repo_path: str, output_dir: str = "outputs",
             print(f"⚠️  Warning: Unexpected error fetching issues: {e}")
             print("   ⏭️  Continuing without GitHub issues...")
 
-    print("🤖 4/4 Generating documentation with Claude...")
+    print("\n🤖 4/4 Generating documentation with Claude...")
     # Pass all file paths to send_to_claude
     onboarding_doc = send_to_claude(
         scan_file,

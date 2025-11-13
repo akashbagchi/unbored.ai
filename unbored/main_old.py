@@ -238,7 +238,7 @@ def main():
     # ----- GITHUB ISSUES (optional) -----
     if args.gh_repo and args.issues_limit > 0:
         client = GitHubClient(token=args.gh_token)
-        raw = client.fetch_closed_issues(repo_full_name=args.gh_repo, limit=args.issues_limit, include_body=True)
+        raw = client.fetch_all_issues(repo_full_name=args.gh_repo, limit=args.issues_limit, include_body=True)
 
         # Filter by keywords (set issues_min_hits=0 to keep all)
         filtered = keyword_filter(raw, args.issues_keyword, min_hits=max(0, args.issues_min_hits))
