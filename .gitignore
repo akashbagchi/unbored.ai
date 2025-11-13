@@ -14,3 +14,4 @@ ghost-onboarder/ghost-onboarder-site/docs/intro.md
 /dist/
 /build/
 *.egg-info/
+**/.env

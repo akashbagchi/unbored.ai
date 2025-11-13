@@ -6,6 +6,13 @@ import os
 
 from github import Github, UnknownObjectException, GithubException  # PyGithub
 
+DEFAULT_KEYWORDS = {
+    'labels': ['bug', 'documentation', 'docs', 'question', 'help wanted',
+                'good first issue', 'setup', 'enhancement', 'feat'],
+    'body': ['how do i', 'how to', 'setup', 'install', 'getting started',
+                'environment', 'dependency', 'configuration', 'error', 'failed']
+}
+
 @dataclass
 class IssueLite:
     number: int
@@ -39,14 +46,14 @@ class GitHubClient:
         # token can be None for public data; but rate limit is tiny.
         self._gh = Github(login_or_token=token or os.getenv("GITHUB_TOKEN"))
 
-    def fetch_closed_issues(
+    def fetch_all_issues(
         self,
         repo_full_name: str,
         limit: int,
         include_body: bool = True,
     ) -> List[IssueLite]:
         """
-        Fetch last N CLOSED issues (excluding PRs) in reverse-chronological closed order.
+        Fetch last N issues (excluding PRs) in reverse-chronological closed order.
         """
         try:
             repo = self._gh.get_repo(repo_full_name)
@@ -55,13 +62,13 @@ class GitHubClient:
         except GithubException as e:
             raise RuntimeError(f"GitHub error: {e.data or e.status}")
 
-        # state=closed, sort by updated/created/ ??? We want most recently *closed*
         issues = repo.get_issues()  # PyGithub lacks sort=closed_at; we’ll slice manually later.
 
         out: List[IssueLite] = []
         count = 0
         for i in issues:  # most recently updated first
             # Skip PRs (PyGithub: issue.pull_request is not None on PRs)
+            # TODO - Optionally give the option to include PRs if the user deems it sufficiently relevant.
             if getattr(i, "pull_request", None):
                 continue
             body = i.body or None
@@ -90,16 +97,31 @@ class GitHubClient:
         out.sort(key=lambda x: (x.closed_at or x.created_at or ""), reverse=True)
         return out
 
+
 def keyword_filter(
     issues: Iterable[IssueLite],
     keywords: Iterable[str],
     min_hits: int = 1,
 ) -> List[Dict[str, Any]]:
     """
-    Return issues with simple keyword scoring across title/body/labels.
+    Return issues with keyword scoring. Falls back to all (max 50) issues if no matches.
     """
     kw = [k.lower() for k in keywords if k]
+
+    if not kw:
+        results = []
+        for i, iss in enumerate(issues):
+            if i>=50:
+                break
+            rec = iss.to_json()
+            rec["keyword_hits"] = 0
+            results.append(rec)
+        results.sort(key = lambda r: r.get("closed_at") or r.get("created_at") or "", reverse=True)
+        return results
+
     results: List[Dict[str, Any]] = []
+    all_issues: List[Dict[str, Any]] = []
+
     for iss in issues:
         hay_title = (iss.title or "").lower()
         hay_body = (iss.body or "")[:40_000].lower()  # cap to keep memory sane
@@ -110,10 +132,17 @@ def keyword_filter(
             if k in hay_title or k in hay_body or k in hay_labels:
                 hits += 1
 
-        if hits >= min_hits or not kw:
-            rec = iss.to_json()
-            rec["keyword_hits"] = hits
+        rec = iss.to_json()
+        rec["keyword_hits"] = hits
+        all_issues.append(rec)
+
+        if hits >= min_hits:
             results.append(rec)
+
+    # Fallback: no matches
+    if not results:
+        results = all_issues[:50]
+
     # sort by hits desc then by closed_at desc
     results.sort(key=lambda r: (r.get("keyword_hits", 0), r.get("closed_at") or r.get("created_at") or ""), reverse=True)
     return results
