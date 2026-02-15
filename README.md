@@ -1,216 +1,165 @@
 # unbored.AI
 
-**Automated onboarding documentation generator that transforms any GitHub repository into a comprehensive documentation site with AI-generated architecture overviews.**
+Automated onboarding documentation generator. Scans a GitHub repository, builds a dependency graph, fetches relevant issues, and produces an architecture overview via Claude — served as a Docusaurus site.
 
-## 🚀 Quick Start
-
-Generate beautiful documentation for any repository in 3 steps:
+## Quick Start
 
 ```bash
-# 1. Install unbored
-pip install unbored
+# Install
+pip install git+https://github.com/akashbagchi/unbored.ai.git
 
-# 2. Navigate to your repository
+# Set your Anthropic API key (one-time)
+unbored config set anthropic_api_key sk-ant-...
+
+# Run from any repository
 cd /path/to/your/repo
-
-# 3. Generate and view onboarding documentation
 unbored
-
-# That's it! Opens documentation at http://localhost:3000
 ```
 
-Our tool automatically:
-- Scans your repository structure
-- Generates AI-powered onboarding documentation
-- Creates an interactive documentation website
-- Opens it in your browser
+The CLI scans the repo, calls Claude, and opens a documentation site at `http://localhost:3000`.
 
-## 🎯 What It Does
+## What It Generates
 
-unbored.AI automatically creates:
+- **Architecture Overview** — AI-generated breakdown of system design, components, and tech stack.
+- **Interactive Dependency Graph** — Visual map of imports and module relationships (React Flow).
+- **Documentation Site** — Searchable Docusaurus site with the above content.
 
-- **📋 Architecture Overview**: AI-generated explanation of system design, tech stack, and component responsibilities
-- **🗂️ Interactive Graph View**: Visual representation of repository structure and dependencies
-- **📚 Professional Documentation Site**: Clean, searchable Docusaurus site with modern UI
+## Configuration
 
-## 🏗️ How It Works
+Tokens are resolved in order: **CLI flag > environment variable > config file**.
+
+### API Keys
+
+An Anthropic API key is required. A GitHub token is optional (needed for private repos or higher rate limits).
+
+```bash
+# Store keys persistently (~/.unbored/config.yaml)
+unbored config set anthropic_api_key sk-ant-...
+unbored config set github_token ghp_...
+
+# View stored config (values are masked)
+unbored config show
+
+# Clear all stored config
+unbored config clear
+```
+
+Alternatively, use environment variables:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+export GITHUB_TOKEN=ghp_...
+```
+
+Or pass per-run via CLI flags:
+
+```bash
+unbored --api-key sk-ant-... --github-token ghp_...
+```
+
+### CLI Flags
+
+| Flag | Description |
+|------|-------------|
+| `--api-key` | Anthropic API key (overrides env and config) |
+| `--github-token` | GitHub PAT (overrides env and config) |
+| `--skip_github` | Skip GitHub issue discovery entirely |
+
+## Pipeline
 
 ```
-Repository → Scanner → Claude AI → Documentation Site
-     ↓           ↓         ↓            ↓
-   File tree   Analyze   Generate    Beautiful
-   Structure   Content   Overview     Docs
+Target Repo
+  -> scanner.py         Scan file tree, detect ecosystem, read key files
+  -> build_dependency_graph  Extract JS/TS/Python imports into a NetworkX graph
+  -> generate_graph_positions  Spring layout with community detection
+  -> github_client.py   Fetch and filter closed issues by onboarding keywords
+  -> generator.py       Send scan + graph + issues to Claude, receive architecture overview
+  -> update_existing_site  Write generated content into Docusaurus template
+  -> npm start           Serve documentation site
 ```
 
-### Automated Pipeline
-
-1. **Repository Scanning** (`cli/main.py`): Analyzes file structure, extracts key information
-2. **AI Processing** (`generator.py`): Sends structured data to Claude API for documentation generation
-3. **Site Generation**: Updates existing Docusaurus site with AI-generated content
-
-## 📁 Project Structure
+## Project Structure
 
 ```
 unbored.ai/
-├── unbored/                            # Core package
-│   ├── template_site/                  # Docusaurus template
-│   ├── claude_client.py
-│   ├── cli.py                          # Main CLI entry point (unbored command)
-│   ├── generate_graph_positions.py     # Graph layout
-│   ├── generator.py
-│   ├── github_client.py
-│   ├── main_old.py
-│   └── scanner.py                      # Repository analysis
-├── MANIFEST.in
-├── README.md
+├── unbored/
+│   ├── cli.py                      # CLI entry point (unbored command)
+│   ├── config.py                   # Token/config management (~/.unbored/config.yaml)
+│   ├── scanner.py                  # Repository analysis
+│   ├── generator.py                # Claude API integration, site updater
+│   ├── github_client.py            # GitHub issue fetching (PyGithub)
+│   ├── generate_graph_positions.py # Graph layout (NetworkX + spring layout)
+│   ├── main_old.py                 # Legacy CLI (manual pipeline steps)
+│   └── template-site/              # Docusaurus template
+│       ├── docs/intro.md           # AI-generated architecture overview
+│       ├── src/pages/graph.tsx     # Interactive dependency graph (React Flow)
+│       └── static/graph_with_pos.json
 ├── requirements.txt
-└── setup.py
+├── setup.py
+├── CHANGELOG.md
+└── README.md
 ```
 
-## 🛠️ Installation
+## Output
 
-```bash
-pip install unbored
-```
-
-**Requirements:**
-- Python 3.8+
-- Node.js 16+ (for documentation site)
-- Git (for repository detection)
-
-## 📖 Usage
-
-### Basic Usage (Recommended)
-
-```bash
-cd your-project
-unbored
-```
-
-### Advanced: Manual Pipeline
-
-If you need more control:
-```bash
-# 1. Generate scan data
-python -m unbored.main_old --repo . --out .unbored/scan.jsonl
-
-# 2. Generate dependency graph
-# (automatically created as scan.jsonl.graph.json)
-
-# 3. Generate documentation
-python -m unbored.claude_client .unbored/scan.jsonl your-username/repo-name
-```
-
-## 🔧 Configuration
-
-> [!WARNING]
-> This tool currently uses a pre-configured AWS Lambda endpoint set-up by one of our core developers. This is subject to change at any time due to cost constraints, which would require users to provide their own endpoints and/or API keys. Please be mindful of the same with your usage.
-
-### API Setup
-The pipeline uses a pre-configured AWS Lambda endpoint. No additional API key setup required.
-
-### Customization
-All generated files are in `.unbored/` directory (automatically added to `.gitignore`):
-- Modify `site/docs/` for custom documentation pages
-- Edit `site/docusaurus.config.ts` for site customization
-- Update `outputs/` for raw analysis data
-
-## 📂 Output Structure
-
-Running `unbored` creates a `./unbored/` directory in your repository:
+Running `unbored` creates a `.unbored/` directory (auto-added to `.gitignore`):
 
 ```
 .unbored/
 ├── outputs/
-│   ├── scan.jsonl              # Repository analysis
-│   ├── scan.jsonl.graph.json   # Dependency graph
-│   └── scan.issues.jsonl       # GitHub issues (if available)
-└── site/                       # Docusaurus documentation site
-    ├── docs/intro.md           # AI-generated architecture overview
-    ├── src/pages/graph.tsx     # Interactive dependency graph
-    └── static/graph_with_pos.json  # Graph visualization data
+│   ├── scan.jsonl              # Repository structure and metadata
+│   ├── scan.jsonl.graph.json   # Dependency graph (nodes + edges)
+│   └── scan.issues.jsonl       # Filtered GitHub issues (if available)
+└── site/                       # Docusaurus site with generated content
 ```
 
-**Note:** `.unbored/` is automatically added to your `.gitignore`
+## Requirements
 
-## 🎯 Use Cases
+- Python 3.8+
+- Node.js 20+ (for the documentation site)
+- Git
+- An [Anthropic API key](https://console.anthropic.com/)
 
-- **🏢 Enterprise Onboarding**: Reduce new developer ramp-up time from weeks to days
-- **📖 Open Source Projects**: Auto-generate comprehensive documentation for contributors
-- **🔄 Legacy Codebases**: Quickly document undocumented projects
-- **📚 Code Reviews**: Provide architectural context for reviewers
+## Tech Stack
 
-## 🧰 Tech Stack
+**Pipeline:** Python, Anthropic SDK (Claude Sonnet 4), NetworkX, PyGithub, PyYAML
 
-**Core Pipeline:**
-- Python (scanning, API integration)
-- Claude AI (Anthropic Sonnet 4)
-- AWS Lambda (Claude API proxy)
-- NetworkX (graph analysis)
-- Typer (CLI framework)
+**Documentation Site:** Docusaurus 3.9, React 19, React Flow 11, TypeScript
 
-**Documentation Site:**
-- Docusaurus (React-based)
-- React Flow (interactive graphs)
-- TypeScript
+## Development
 
-**Analysis:**
-- Tree-sitter (code parsing)
-- JSON Lines (structured data)
-
-## 🚧 Development
-
-### Development Mode
 ```bash
-# Start site in development mode
-cd template_site
-npm run start
+# Install in editable mode
+pip install -e .
 
-# Build for production
-npm run build
-npm run serve
+# Run the template site directly
+cd unbored/template-site
+npm install
+npm run start        # Dev server
+npm run build        # Production build
+npm run typecheck    # Type checking
 ```
 
-### Adding New Scanners
-1. Add scanning logic to `cli/scanner.py`
-2. Update output format in `cli/main.py`
-3. Test with `python cli/main.py --repo <test-repo>`
-
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
-2. Create feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open Pull Request
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Commit changes and push
+4. Open a Pull Request
 
-## 📜 License
+## License
 
-MIT License with Attribution Requirement
+MIT License with Attribution Requirement.
 
 Copyright (c) 2025 Akash Bagchi, Akshaya Nadathur, Pranjal Padakannaya, Sachin SS
 
-This project is open source under the MIT License with an attribution requirement.
-See [LICENSE](LICENSE) for full details.
+When using, modifying, or distributing this software, include attribution to the original authors and a link to this repository. See [LICENSE](LICENSE) for details.
 
-**Attribution Requirement:** When using, modifying, or distributing this software,
-you must include clear attribution to the original authors and link to this repository.
+## Links
 
-### How to Attribute
-
-In your documentation, README, or about page, include:
-```
-Documentation generated using unbored.AI
-Created by Akash Bagchi, Akshaya Nadathur, Pranjal Padakannaya, Sachin SS
-https://github.com/akashbagchi/unbored.ai
-```
-
-## 🎉 Demo
-
-- Pitch Deck: https://www.figma.com/deck/ryyAt60shYMnkMtUzyuecJ/unbored-presentation?node-id=1-32&viewport=-158%2C-121%2C0.72&t=tw2HYoP7KJmOaFKi-1&scaling=min-zoom&content-scaling=fixed&page-id=0%3A1
-- YouTube Demo: https://youtu.be/oMcnYGHypfU
+- [Pitch Deck](https://www.figma.com/deck/ryyAt60shYMnkMtUzyuecJ/unbored-presentation?node-id=1-32&viewport=-158%2C-121%2C0.72&t=tw2HYoP7KJmOaFKi-1&scaling=min-zoom&content-scaling=fixed&page-id=0%3A1)
+- [Demo Video](https://youtu.be/oMcnYGHypfU)
 
 ---
 
-*Built during the HackASU 2025 Hackathon hosted by the Claude Builder Club @ ASU*
-*"Turn any repository into a self-explaining codebase"*
+*Built during HackASU 2025 (Claude Builder Club @ ASU)*

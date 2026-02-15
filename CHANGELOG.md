@@ -1,3 +1,29 @@
+### 0.4.0
+
+- Features:
+    - Direct Anthropic SDK integration, replacing the AWS Lambda proxy
+        - Users now provide their own Anthropic API key instead of relying
+        on a shared Lambda endpoint.
+        - Uses `claude-sonnet-4-20250514` via the `anthropic` Python SDK.
+    - Persistent configuration via `~/.unbored/config.yaml`
+        - `unbored config set <key> <value>` to store `github_token` and
+        `anthropic_api_key`.
+        - `unbored config show` displays stored config with masked values.
+        - `unbored config clear` wipes all stored config.
+    - CLI flags `--api-key` and `--github-token` for per-run token overrides
+        - Token resolution priority: CLI flag > environment variable > config file.
+    - GitHub PAT support for private repositories
+        - Set `github_token` via config or `GITHUB_TOKEN` env var to fetch
+        issues from private repos without `--skip_github`.
+- Fixes:
+    - Removed duplicate `send_to_claude()` call in the CLI pipeline
+        - Previously, `cli.py` called `generate_all()` (which calls
+        `send_to_claude()` internally) and then called `send_to_claude()`
+        again separately.
+- Removed:
+    - `claude_client.py` — unused standalone client with placeholder Lambda URL.
+    - AWS Lambda endpoint dependency in `generator.py`.
+
 ### 0.3.0
 
 - Fixes:
