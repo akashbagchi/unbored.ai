@@ -8,18 +8,7 @@ function GraphClient() {
 
   const [g, setG] = useState<{ nodes: any[]; edges: any[] }>({ nodes: [], edges: [] });
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-
-  // --- DEV-ONLY: suppress Chrome's noisy ResizeObserver overlay error ---
-  useEffect(() => {
-    const handler = (e: ErrorEvent) => {
-      if (e?.message && e.message.includes("ResizeObserver loop")) {
-        e.stopImmediatePropagation();
-      }
-    };
-    window.addEventListener("error", handler);
-    return () => window.removeEventListener("error", handler);
-  }, []);
-  // ---------------------------------------------------------------------
+  const [fitViewOnce, setFitViewOnce] = useState(true);
 
   useEffect(() => {
     fetch("/graph_with_pos.json").then((r) => r.json()).then(setG);
@@ -91,9 +80,9 @@ function GraphClient() {
           background: bg,                // OPAQUE fill so edges can't show through
           border: `1.5px solid ${stroke}`,
           fontSize: 11,
-          // Use filter to "dim" non-active nodes without transparency
-          filter: isActive ? "none" : "brightness(0.3) saturate(0.4) contrast(0.8) grayscale(0.3)",
-          transition: "filter 120ms ease",
+          // Use opacity instead of filter - much more performant and won't trigger ResizeObserver
+          opacity: isActive ? 1 : 0.25,
+          transition: "opacity 120ms ease",
         },
         draggable: false,
         title: `Level ${level} • ${n.id}`,
@@ -151,8 +140,9 @@ function GraphClient() {
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        fitView
+        fitView={fitViewOnce}
         fitViewOptions={{ padding: 0.12 }}
+        onInit={() => setFitViewOnce(false)}
         panOnScroll
         zoomOnScroll
         proOptions={{ hideAttribution: true }}
