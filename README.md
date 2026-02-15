@@ -59,11 +59,11 @@ unbored --api-key sk-ant-... --github-token ghp_...
 
 ### CLI Flags
 
-| Flag | Description |
-|------|-------------|
-| `--api-key` | Anthropic API key (overrides env and config) |
-| `--github-token` | GitHub PAT (overrides env and config) |
-| `--skip_github` | Skip GitHub issue discovery entirely |
+| Flag             | Description                                  |
+| ---------------- | -------------------------------------------- |
+| `--api-key`      | Anthropic API key (overrides env and config) |
+| `--github-token` | GitHub PAT (overrides env and config)        |
+| `--skip_github`  | Skip GitHub issue discovery entirely         |
 
 ## Pipeline
 
@@ -162,4 +162,4 @@ When using, modifying, or distributing this software, include attribution to the
 
 ---
 
-*Built during HackASU 2025 (Claude Builder Club @ ASU)*
+_Built during HackASU 2025 (Claude Builder Club @ ASU)_
