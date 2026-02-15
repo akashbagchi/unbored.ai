@@ -6,8 +6,8 @@ Usage: python generator.py <repo_path> <repo_name> [site_path]
 import json
 import subprocess
 import sys
-from github.Label import Label
-import requests
+import os
+import anthropic
 from pathlib import Path
 import argparse
 from .scanner import scan_repo, build_dependency_graph
@@ -15,12 +15,27 @@ from .github_client import GitHubClient, keyword_filter
 from .main_old import _write_jsonl, _iter_jsonl_records
 from .generate_graph_position import generate_graph_positions
 
-LAMBDA_ENDPOINT = "https://vd03y9yw0g.execute-api.us-east-1.amazonaws.com/prod/chat"
+SYSTEM_PROMPT = """You are a senior software architect. Given repository scan data, a dependency graph, \
+and GitHub issues, generate a comprehensive architecture overview document for developer onboarding.
+
+Your output should be well-structured Markdown covering:
+1. **Project Overview** — What the project does, its purpose, and key technologies
+2. **Architecture** — High-level system design, major components, and how they interact
+3. **Directory Structure** — Key directories and what they contain
+4. **Core Modules** — The most important files/modules and their responsibilities
+5. **Dependency Flow** — How modules depend on each other (informed by the graph data)
+6. **Common Patterns** — Recurring patterns, conventions, or idioms in the codebase
+7. **Getting Started** — Key entry points for new developers
+8. **Known Pain Points** — Common issues from GitHub issues data (if provided)
+
+Write clearly and concisely. Use code references where helpful. \
+Target audience is a new developer joining the team."""
+
 
 def generate_all(repo_path: str, output_dir: str = "outputs",
                     gh_repo: str | None = None, gh_token: str | None = None,
                     issues_limit: int = 50, issues_keywords: list | None = None,
-                    skip_github: bool = False):
+                    skip_github: bool = False, api_key: str | None = None):
     """
     Single command to generate all outputs
 
@@ -32,6 +47,7 @@ def generate_all(repo_path: str, output_dir: str = "outputs",
         issues_limit: Number of issues to fetch
         issues_keywords: Keywords for filtering issues
         skip_github: Skip GitHub issues discover entirely
+        api_key: Anthropic API key (Optional)
     """
 
     output_path = Path(output_dir)
@@ -49,7 +65,7 @@ def generate_all(repo_path: str, output_dir: str = "outputs",
 
     print("\n📊 2/4 Building Dependency Graph...")
     graph = build_dependency_graph(repo_path)
-    graph_file = output_path / "scan.jsonl.graph.json"  # Fixed typo: was scanl.jsonl.graph.json
+    graph_file = output_path / "scan.jsonl.graph.json"
     graph_file.write_text(json.dumps(graph, indent=2))
     print(f"✅ Generated {graph_file}")
 
@@ -86,6 +102,7 @@ def generate_all(repo_path: str, output_dir: str = "outputs",
             print("   💡 For private repos:")
             print("      - Use --skip-github flag to skip issues")
             print("      - Or set GITHUB_TOKEN environment variable")
+            print("      - Or run: unbored config set github_token <your-token>")
             print("   ⏭️  Continuing without GitHub issues...")
 
         except RuntimeError as e:
@@ -99,27 +116,47 @@ def generate_all(repo_path: str, output_dir: str = "outputs",
             print("   ⏭️  Continuing without GitHub issues...")
 
     print("\n🤖 4/4 Generating documentation with Claude...")
-    # Pass all file paths to send_to_claude
     onboarding_doc = send_to_claude(
         scan_file,
         gh_repo or repo_path,
         graph_file=graph_file,
-        issues_file=issues_file
+        issues_file=issues_file,
+        api_key=api_key,
     )
 
     return output_path, onboarding_doc
 
 
-def send_to_claude(scan_file, repo_name, graph_file=None, issues_file=None):
+def send_to_claude(scan_file, repo_name, graph_file=None, issues_file=None, api_key=None):
     """
-    Call Claude API with all available data
+    Call Claude API directly using the Anthropic SDK.
 
     Args:
         scan_file: Path to scan.jsonl
         repo_name: Repository name
         graph_file: Optional path to graph JSON
         issues_file: Optional path to issues JSONL
+        api_key: Optional Anthropic API key
     """
+    # Resolve API key
+    resolved_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+    if not resolved_key:
+        # Try config file as last resort
+        try:
+            from .config import load_config
+            config = load_config()
+            resolved_key = config.get("anthropic_api_key")
+        except Exception:
+            pass
+
+    if not resolved_key:
+        print("❌ No Anthropic API key found.")
+        print("   💡 Provide your API key using one of these methods:")
+        print("      1. unbored config set anthropic_api_key <your-key>")
+        print("      2. export ANTHROPIC_API_KEY=<your-key>")
+        print("      3. unbored --api-key <your-key>")
+        return None
+
     try:
         # Load scan data (required)
         repo_data = Path(scan_file).read_text()
@@ -150,34 +187,40 @@ Sample import relationships:
             issues_data = '\n'.join(issues_lines[:20])  # Limit to 20 issues
             print(f"   ✓ Including {len(issues_lines)} issues")
 
-        # Build payload
-        payload = {
-            "repo_data": repo_data,
-            "graph_data": graph_data,
-            "issues_data": issues_data,
-            "repo_name": repo_name,
-        }
+        # Build the user message
+        user_message = f"Repository: {repo_name}\n\n"
+        user_message += f"## Repository Scan Data\n{repo_data}\n\n"
+        if graph_data:
+            user_message += f"## {graph_data}\n\n"
+        if issues_data:
+            user_message += f"## GitHub Issues\n{issues_data}\n\n"
 
-        print(f"   Payload size: {len(json.dumps(payload))} bytes")
+        print(f"   Payload size: {len(user_message)} chars")
 
-        response = requests.post(
-            LAMBDA_ENDPOINT,
-            headers={"Content-Type": "application/json"},
-            json=payload,
-            timeout=60
+        client = anthropic.Anthropic(api_key=resolved_key)
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=4096,
+            system=SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_message}],
         )
 
-        if response.status_code == 200:
-            result = response.json()
-            print("✅ Onboarding doc generated")
-            return result.get("architecture_overview", "")
-        else:
-            print(f"❌ Claude API failed: {response.status_code}")
-            print(response.text)
-            return None
+        result_text = response.content[0].text
+        print("✅ Onboarding doc generated")
+        return result_text
+
+    except anthropic.AuthenticationError:
+        print("❌ Invalid Anthropic API key.")
+        print("   💡 Check your key and update it:")
+        print("      unbored config set anthropic_api_key <your-key>")
+        return None
+
+    except anthropic.RateLimitError:
+        print("❌ Anthropic API rate limit exceeded. Please wait and try again.")
+        return None
 
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Error calling Claude API: {e}")
         return None
 
 
@@ -201,7 +244,7 @@ sidebar_position: 1
 
 ---
 
-*This documentation was automatically generated by Ghost Onboarder using Claude AI.*
+*This documentation was automatically generated by unbored.AI using Claude.*
 """
 
     # Update docs/intro.md
@@ -239,6 +282,8 @@ def main():
                        help="GitHub repo (owner/name) for issues")
     parser.add_argument("--gh-token",
                        help="GitHub token (or set GITHUB_TOKEN env var)")
+    parser.add_argument("--api-key",
+                       help="Anthropic API key (or set ANTHROPIC_API_KEY env var)")
     parser.add_argument("--issues-limit", type=int, default=50,
                        help="Number of issues to fetch (default: 50)")
     parser.add_argument("--site-path", default="ghost-onboarder-site",
@@ -255,7 +300,8 @@ def main():
         output_dir=args.output,
         gh_repo=args.gh_repo,
         gh_token=args.gh_token,
-        issues_limit=args.issues_limit
+        issues_limit=args.issues_limit,
+        api_key=args.api_key,
     )
 
     # Update site

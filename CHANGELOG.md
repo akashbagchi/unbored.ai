@@ -1,3 +1,10 @@
+### 0.3.0
+
+- Fixes:
+    - Added error handling/workarounds for private repos
+        - Skip issue discovery if access to remote repository is not
+        configured, or if the repository is otherwise not found.
+
 ### 0.2.0
 
 - Initial Pre-Release

@@ -19,6 +19,8 @@ const config: Config = {
     locales: ['en'],
   },
 
+  clientModules: ['./src/resizeObserverFix.ts'],
+
   presets: [
     [
       'classic',
