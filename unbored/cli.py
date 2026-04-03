@@ -183,6 +183,7 @@ def main():
         )
 
         if onboarding_doc and site_dir.exists():
+            # onboarding_doc is a list of {filename, title, sidebar_position, content} dicts
             update_existing_site(onboarding_doc, repo_name, str(site_dir))
 
             # Start the dev server

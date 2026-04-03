@@ -28,10 +28,9 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           editUrl: undefined, // hides "Edit this page"
+          routeBasePath: '/', // docs become the site root
         },
-        blog: {
-          showReadingTime: false,
-        },
+        blog: false, // disable unused blog plugin
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -42,7 +41,8 @@ const config: Config = {
   themeConfig: {
     image: 'img/social-card.png',
     colorMode: {
-      respectPrefersColorScheme: true,
+      defaultMode: 'light',
+      disableSwitch: true,
     },
 
     navbar: {
@@ -52,33 +52,25 @@ const config: Config = {
         src: 'img/logo.svg',
       },
       items: [
-        {
-          type: 'docSidebar',
-          sidebarId: 'tutorialSidebar',
-          position: 'left',
-          label: 'Architecture Overview',
-        },
-        { to: '/graph', label: 'Graph View', position: 'right' }, // 👈 keep this
+        { to: '/graph', label: 'Graph View', position: 'right' },
       ],
     },
 
     footer: {
-      style: 'dark',
+      style: 'light',
       links: [
         {
           title: 'Resources',
           items: [
-            { label: 'Architecture Overview', to: '/docs/intro' },
             { label: 'Graph View', to: '/graph' },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Ghost Onboarder. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} unbored.AI. Built with Docusaurus.`,
     },
 
     prism: {
       theme: prismThemes.github,
-      darkTheme: prismThemes.dracula,
     },
   } satisfies Preset.ThemeConfig,
 };

@@ -26,7 +26,7 @@ setup(
             'template-site/**/.*'
         ],
     },
-    python_requires='>=3.8',
+    python_requires='>=3.8,<4.0',
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',

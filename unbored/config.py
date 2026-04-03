@@ -27,8 +27,10 @@ def load_config() -> dict:
 def save_config(data: dict):
     """Write config to ~/.unbored/config.yaml, creating dir if needed."""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    CONFIG_DIR.chmod(0o700)  # user-only directory
     with open(CONFIG_FILE, "w") as f:
         yaml.safe_dump(data, f, default_flow_style=False)
+    CONFIG_FILE.chmod(0o600)  # user-only read/write
 
 
 def resolve_token(cli_value: str | None, env_var: str, config_key: str) -> str | None:

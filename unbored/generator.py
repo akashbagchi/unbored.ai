@@ -16,20 +16,32 @@ from .main_old import _write_jsonl, _iter_jsonl_records
 from .generate_graph_position import generate_graph_positions
 
 SYSTEM_PROMPT = """You are a senior software architect. Given repository scan data, a dependency graph, \
-and GitHub issues, generate a comprehensive architecture overview document for developer onboarding.
+and GitHub issues, generate multi-page onboarding documentation for developer onboarding.
 
-Your output should be well-structured Markdown covering:
-1. **Project Overview** — What the project does, its purpose, and key technologies
-2. **Architecture** — High-level system design, major components, and how they interact
-3. **Directory Structure** — Key directories and what they contain
-4. **Core Modules** — The most important files/modules and their responsibilities
-5. **Dependency Flow** — How modules depend on each other (informed by the graph data)
-6. **Common Patterns** — Recurring patterns, conventions, or idioms in the codebase
-7. **Getting Started** — Key entry points for new developers
-8. **Known Pain Points** — Common issues from GitHub issues data (if provided)
+Analyze the codebase and identify logical subsystems autonomously. Output a JSON array of page objects — \
+no other text, no markdown fences, just the raw JSON array. Cap the number of pages at 6.
 
-Write clearly and concisely. Use code references where helpful. \
-Target audience is a new developer joining the team."""
+Always include:
+- An "intro.md" page covering Project Overview and Architecture (sidebar_position: 1)
+- One page per major logical module or subsystem you identify
+
+Each page object must have these exact fields:
+{
+  "filename": "intro.md",
+  "title": "Overview",
+  "sidebar_position": 1,
+  "content": "...full markdown content for this page..."
+}
+
+Rules for content:
+- Write well-structured Markdown per page
+- intro.md must cover: project purpose, key technologies, high-level architecture, directory structure, getting started
+- Each module page covers: what it does, key files/classes, how it connects to other modules, any gotchas
+- Use code references where helpful (file paths, function names)
+- Target audience is a new developer joining the team
+- If GitHub issues are provided, include a "Known Pain Points" section on the relevant page (intro.md if unsure)
+
+Output ONLY the JSON array. No preamble, no explanation, no markdown code fences."""
 
 
 def generate_all(repo_path: str, output_dir: str = "outputs",
@@ -200,14 +212,47 @@ Sample import relationships:
         client = anthropic.Anthropic(api_key=resolved_key)
         response = client.messages.create(
             model="claude-sonnet-4-20250514",
-            max_tokens=4096,
+            max_tokens=16000,
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_message}],
         )
 
-        result_text = response.content[0].text
-        print("✅ Onboarding doc generated")
-        return result_text
+        result_text = response.content[0].text.strip()
+
+        # Strip markdown code fences if Claude wrapped the JSON
+        if result_text.startswith("```"):
+            result_text = result_text.split("\n", 1)[-1]  # drop opening fence line
+            if result_text.endswith("```"):
+                result_text = result_text[: result_text.rfind("```")].strip()
+
+        # Parse JSON array of page dicts
+        try:
+            pages = json.loads(result_text)
+            if not isinstance(pages, list):
+                raise ValueError("Expected JSON array")
+            print(f"✅ Generated {len(pages)} documentation page(s)")
+            return pages
+        except (json.JSONDecodeError, ValueError) as e:
+            # Response may have been truncated — try to salvage any complete page objects
+            print(f"⚠️  Could not parse full JSON response ({e}), attempting partial recovery...")
+            decoder = json.JSONDecoder()
+            rest = result_text.lstrip().lstrip("[").lstrip()
+            salvaged = []
+            while rest:
+                try:
+                    obj, idx = decoder.raw_decode(rest)
+                    if isinstance(obj, dict) and "filename" in obj and "content" in obj:
+                        salvaged.append(obj)
+                    rest = rest[idx:].lstrip().lstrip(",").lstrip()
+                except json.JSONDecodeError:
+                    break
+            if salvaged:
+                print(f"✅ Recovered {len(salvaged)} page(s) from partial response")
+                return salvaged
+            print("⚠️  Could not recover any pages — response may have been cut off")
+            return [{"filename": "intro.md", "title": "Overview", "sidebar_position": 1,
+                     "content": "# Documentation\n\nDocumentation generation was incomplete (response truncated). "
+                                "Please run `unbored` again."}]
 
     except anthropic.AuthenticationError:
         print("❌ Invalid Anthropic API key.")
@@ -224,8 +269,14 @@ Sample import relationships:
         return None
 
 
-def update_existing_site(onboarding_doc, repo_name, site_path):
-    """Update existing Docusaurus site"""
+def update_existing_site(pages, repo_name, site_path):
+    """Update existing Docusaurus site with multi-page documentation.
+
+    Args:
+        pages: List of {filename, title, sidebar_position, content} dicts from Claude
+        repo_name: Repository name (used for site title update)
+        site_path: Path to the Docusaurus site directory
+    """
     print("📝 Updating Docusaurus site...")
 
     site_dir = Path(site_path)
@@ -233,33 +284,51 @@ def update_existing_site(onboarding_doc, repo_name, site_path):
         print(f"❌ Site directory {site_path} not found")
         return False
 
-    # Create intro.md
-    intro_content = f"""---
-sidebar_position: 1
----
+    docs_dir = site_dir / "docs"
+    docs_dir.mkdir(exist_ok=True)
 
-# {repo_name} - Architecture Overview
+    # Clear previously generated .md files from docs/
+    for existing_md in docs_dir.glob("*.md"):
+        existing_md.unlink()
 
-{onboarding_doc}
+    # Write each page with frontmatter
+    for page in pages:
+        filename = page.get("filename", "intro.md")
+        title = page.get("title", "Documentation")
+        sidebar_position = page.get("sidebar_position", 1)
+        content = page.get("content", "")
 
----
+        # Build frontmatter
+        # format: md forces plain CommonMark parsing instead of MDX,
+        # preventing acorn parse errors on curly braces / angle brackets
+        # that Claude may emit in generated content.
+        frontmatter_lines = [
+            "---",
+            f"sidebar_position: {sidebar_position}",
+            f"title: \"{title}\"",
+            "format: md",
+        ]
+        # Root page gets slug: / so docs become the site root (v0.6.0)
+        if filename == "intro.md":
+            frontmatter_lines.append("slug: /")
+        frontmatter_lines.append("---")
+        frontmatter = "\n".join(frontmatter_lines)
 
-*This documentation was automatically generated by unbored.AI using Claude.*
-"""
+        page_content = f"{frontmatter}\n\n{content}\n\n---\n\n*This documentation was automatically generated by unbored.AI using Claude.*\n"
 
-    # Update docs/intro.md
-    docs_path = site_dir / "docs" / "intro.md"
-    docs_path.parent.mkdir(exist_ok=True)
-    docs_path.write_text(intro_content)
-
-    print(f"✅ Updated {docs_path}")
+        page_path = docs_dir / filename
+        page_path.write_text(page_content)
+        print(f"✅ Written {page_path.name}")
 
     # Update title in docusaurus.config.ts if it exists
     config_path = site_dir / "docusaurus.config.ts"
     if config_path.exists():
         config_content = config_path.read_text()
-        if "title: 'Ghost Onboarder'," in config_content:
+        if "title: 'unbored - Claude Builder HackASU'," in config_content or "title: 'Ghost Onboarder'," in config_content:
             updated_config = config_content.replace(
+                "title: 'unbored - Claude Builder HackASU',",
+                f"title: '{repo_name} Documentation',"
+            ).replace(
                 "title: 'Ghost Onboarder',",
                 f"title: '{repo_name} Documentation',"
             ).replace(
@@ -267,7 +336,7 @@ sidebar_position: 1
                 f"tagline: 'Auto-generated documentation for {repo_name}',"
             )
             config_path.write_text(updated_config)
-            print(f"✅ Updated site title")
+            print(f"✅ Updated site title to '{repo_name} Documentation'")
 
     return True
 

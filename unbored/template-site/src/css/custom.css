@@ -1,30 +1,335 @@
 /**
- * Any CSS included here will be global. The classic template
- * bundles Infima by default. Infima is a CSS framework designed to
- * work well for content-centric websites.
+ * ElevenLabs-inspired design system for unbored.AI documentation
+ * Palette: black / white / warm stone — no blue
  */
 
-/* You can override the default Infima variables here. */
+@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600&display=swap');
+
+/* ─── Design tokens ─────────────────────────────────────────────────────── */
 :root {
-  --ifm-color-primary: #2e8555;
-  --ifm-color-primary-dark: #29784c;
-  --ifm-color-primary-darker: #277148;
-  --ifm-color-primary-darkest: #205d3b;
-  --ifm-color-primary-light: #33925d;
-  --ifm-color-primary-lighter: #359962;
-  --ifm-color-primary-lightest: #3cad6e;
-  --ifm-code-font-size: 95%;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+  /* Primary — black */
+  --ifm-color-primary: #000000;
+  --ifm-color-primary-dark: #1a1a1a;
+  --ifm-color-primary-darker: #2e2e2e;
+  --ifm-color-primary-darkest: #000000;
+  --ifm-color-primary-light: #333333;
+  --ifm-color-primary-lighter: #4e4e4e;
+  --ifm-color-primary-lightest: #6b6b6b;
+
+  /* Surfaces */
+  --ifm-background-color: #ffffff;
+  --ifm-background-surface-color: #ffffff;
+  --ifm-navbar-background-color: #ffffff;
+  --ifm-footer-background-color: #ffffff;
+
+  /* Text */
+  --ifm-font-color-base: #000000;
+  --ifm-font-color-secondary: #4e4e4e;
+
+  /* Typography — body */
+  --ifm-font-family-base: 'Inter', system-ui, -apple-system, sans-serif;
+  --ifm-font-size-base: 16px;
+  --ifm-line-height-base: 1.5;
+  --ifm-letter-spacing-base: 0.16px;
+
+  /* Code */
+  --ifm-code-font-size: 13px;
+  --ifm-code-font-family: 'Geist Mono', ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+  --ifm-code-background: #f5f4f1;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.05);
+
+  /* Borders & shadows */
+  --ifm-global-border-width: 1px;
+  --ifm-global-radius: 8px;
+  --card-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 2px 6px rgba(0, 0, 0, 0.04),
+    0 4px 12px rgba(0, 0, 0, 0.06);
+
+  /* Navbar */
+  --ifm-navbar-height: 60px;
+  --ifm-navbar-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+  --ifm-navbar-link-color: #000000;
+  --ifm-navbar-link-hover-color: #4e4e4e;
+
+  /* Sidebar */
+  --ifm-sidebar-width: 280px;
+  --ifm-menu-color: #000000;
+  --ifm-menu-color-active: #000000;
+  --ifm-menu-color-background-active: #f5f4f1;
+  --ifm-menu-color-background-hover: #f5f4f1;
+
+  /* Footer */
+  --ifm-footer-color: #4e4e4e;
+  --ifm-footer-link-color: #4e4e4e;
+  --ifm-footer-link-hover-color: #000000;
+
+  /* Warm stone palette */
+  --stone-50: #f5f4f1;
+  --stone-100: #eae8e4;
+  --stone-200: #d5d2cc;
+  --stone-600: #6b6b6b;
 }
 
-/* For readability concerns, you should choose a lighter palette in dark mode. */
-[data-theme='dark'] {
-  --ifm-color-primary: #25c2a0;
-  --ifm-color-primary-dark: #21af90;
-  --ifm-color-primary-darker: #1fa588;
-  --ifm-color-primary-darkest: #1a8870;
-  --ifm-color-primary-light: #29d5b0;
-  --ifm-color-primary-lighter: #32d8b4;
-  --ifm-color-primary-lightest: #4fddbf;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+/* ─── Global body ───────────────────────────────────────────────────────── */
+body {
+  font-family: var(--ifm-font-family-base);
+  color: var(--ifm-font-color-base);
+  background: var(--ifm-background-color);
+  letter-spacing: var(--ifm-letter-spacing-base);
+  line-height: var(--ifm-line-height-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Headings — Figtree light ──────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6,
+.markdown h1, .markdown h2, .markdown h3, .markdown h4 {
+  font-family: 'Figtree', var(--ifm-font-family-base);
+  font-weight: 300;
+  color: #000000;
+  letter-spacing: -0.02em;
+}
+
+h1, .markdown h1 { font-size: 2.5rem; letter-spacing: -0.04em; line-height: 1.08; }
+h2, .markdown h2 { font-size: 1.75rem; letter-spacing: -0.03em; line-height: 1.15; }
+h3, .markdown h3 { font-size: 1.35rem; letter-spacing: -0.02em; line-height: 1.22; }
+h4, .markdown h4 { font-size: 1.1rem; line-height: 1.3; }
+
+/* ─── Navbar ────────────────────────────────────────────────────────────── */
+.navbar {
+  background: var(--ifm-navbar-background-color);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: none;
+  padding: 0 1.5rem;
+}
+
+.navbar__title {
+  font-family: 'Figtree', var(--ifm-font-family-base);
+  font-weight: 500;
+  font-size: 1rem;
+  color: #000000;
+  letter-spacing: -0.01em;
+}
+
+.navbar__link {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #000000;
+}
+
+.navbar__link:hover,
+.navbar__link--active {
+  color: #4e4e4e;
+  text-decoration: none;
+}
+
+/* ─── Sidebar ───────────────────────────────────────────────────────────── */
+.theme-doc-sidebar-container {
+  border-right: 1px solid var(--stone-100);
+}
+
+.menu__link {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: #000000;
+  border-radius: 6px;
+}
+
+.menu__link:hover {
+  background: var(--stone-50);
+  color: #000000;
+}
+
+.menu__link--active,
+.menu__link--active:hover {
+  background: var(--stone-50);
+  color: #000000;
+  font-weight: 500;
+}
+
+.menu__caret::before {
+  filter: none;
+}
+
+/* ─── Doc content ───────────────────────────────────────────────────────── */
+.markdown {
+  color: #000000;
+  line-height: 1.75;
+}
+
+.markdown p {
+  color: #1a1a1a;
+  letter-spacing: 0.16px;
+  line-height: 1.75;
+}
+
+.markdown strong {
+  font-weight: 600;
+  color: #000000;
+}
+
+/* ─── Code ──────────────────────────────────────────────────────────────── */
+code {
+  font-family: var(--ifm-code-font-family);
+  font-size: var(--ifm-code-font-size);
+  background: var(--stone-50);
+  border: 1px solid var(--stone-100);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  color: #000000;
+}
+
+.prism-code {
+  font-family: var(--ifm-code-font-family);
+  font-size: var(--ifm-code-font-size);
+  line-height: 1.85;
+  border-radius: 12px;
+  border: 1px solid var(--stone-100);
+}
+
+pre {
+  border-radius: 12px;
+  border: 1px solid var(--stone-100);
+  box-shadow: var(--card-shadow);
+}
+
+pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+/* ─── Admonitions / cards ───────────────────────────────────────────────── */
+.admonition {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid var(--stone-100);
+  box-shadow: var(--card-shadow);
+  border-left: none;
+  padding: 1rem 1.25rem;
+}
+
+.admonition-heading h5 {
+  font-family: 'Figtree', var(--ifm-font-family-base);
+  font-weight: 500;
+  font-size: 0.875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #000000;
+}
+
+/* ─── Buttons ───────────────────────────────────────────────────────────── */
+.button {
+  border-radius: 9999px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  letter-spacing: 0.01em;
+  padding: 0.55rem 1.4rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.button--primary {
+  background: var(--stone-50);
+  color: #000000;
+  border: 1px solid var(--stone-200);
+}
+
+.button--primary:hover {
+  background: var(--stone-100);
+  color: #000000;
+  text-decoration: none;
+}
+
+.button--secondary {
+  background: #000000;
+  color: #ffffff;
+  border: 1px solid #000000;
+}
+
+.button--secondary:hover {
+  background: #333333;
+  color: #ffffff;
+  text-decoration: none;
+}
+
+/* ─── Footer ────────────────────────────────────────────────────────────── */
+.footer {
+  background: #ffffff;
+  border-top: 1px solid var(--stone-100);
+  padding: 2rem 0;
+}
+
+.footer__title {
+  font-family: 'Figtree', var(--ifm-font-family-base);
+  font-weight: 500;
+  font-size: 0.8125rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #000000;
+}
+
+.footer__link-item {
+  font-size: 0.875rem;
+  color: #4e4e4e;
+}
+
+.footer__link-item:hover {
+  color: #000000;
+  text-decoration: none;
+}
+
+.footer__copyright {
+  font-size: 0.8125rem;
+  color: var(--stone-600);
+  margin-top: 1.5rem;
+}
+
+/* ─── Table of contents ─────────────────────────────────────────────────── */
+.table-of-contents__link {
+  font-size: 0.8125rem;
+  color: #4e4e4e;
+}
+
+.table-of-contents__link:hover,
+.table-of-contents__link--active {
+  color: #000000;
+  font-weight: 500;
+}
+
+/* ─── Breadcrumbs ───────────────────────────────────────────────────────── */
+.breadcrumbs__link {
+  font-size: 0.8125rem;
+  color: #4e4e4e;
+}
+
+/* ─── Search ────────────────────────────────────────────────────────────── */
+.navbar__search-input {
+  border-radius: 9999px;
+  background: var(--stone-50);
+  border: 1px solid var(--stone-100);
+  font-size: 0.875rem;
+}
+
+/* ─── Doc sidebar category ──────────────────────────────────────────────── */
+.menu__list-item-collapsible:hover {
+  background: var(--stone-50);
+  border-radius: 6px;
+}
+
+/* ─── Pagination ────────────────────────────────────────────────────────── */
+.pagination-nav__link {
+  border: 1px solid var(--stone-100);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+}
+
+.pagination-nav__link:hover {
+  border-color: var(--stone-200);
+  background: var(--stone-50);
+}
+
+.pagination-nav__label {
+  font-weight: 500;
+  color: #000000;
 }

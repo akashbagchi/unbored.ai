@@ -1,0 +1,13 @@
+# Loose spec for pip-tools. Regenerate requirements.txt with:
+#   pip install pip-tools
+#   pip-compile requirements.in -o requirements.txt
+networkx>=3.2,<4.0
+numpy>=1.26,<2.0
+scipy>=1.13,<2.0
+typer>=0.9,<0.10
+PyGithub>=2.1,<3.0
+anthropic>=0.45,<1.0
+tree-sitter==0.20.4
+pyyaml>=6.0,<7.0
+rich>=13.7,<14.0
+gitpython>=3.1,<4.0
