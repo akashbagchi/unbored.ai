@@ -1,78 +1,78 @@
-import {themes as prismThemes} from 'prism-react-renderer';
-import type {Config} from '@docusaurus/types';
+import { themes as prismThemes } from 'prism-react-renderer';
+import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
-  title: 'unbored - Claude Builder HackASU',
-  tagline: 'Take the boredom out of onboarding',
-  favicon: 'img/hackasu.png',
+    title: 'unbored - Claude Builder HackASU',
+    tagline: 'Take the boredom out of onboarding',
+    favicon: 'img/hackasu.png',
 
-  // ↓ Basic site URL setup for local/demo hosting
-  url: 'http://localhost:3000',
-  baseUrl: '/',
+    // ↓ Basic site URL setup for local/demo hosting
+    url: 'http://localhost:3000',
+    baseUrl: '/',
 
-  onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'warn',
+    onBrokenLinks: 'throw',
+    onBrokenMarkdownLinks: 'warn',
 
-  i18n: {
-    defaultLocale: 'en',
-    locales: ['en'],
-  },
+    i18n: {
+        defaultLocale: 'en',
+        locales: ['en'],
+    },
 
-  clientModules: ['./src/resizeObserverFix.ts'],
+    clientModules: ['./src/resizeObserverFix.ts'],
 
-  presets: [
-    [
-      'classic',
-      {
-        docs: {
-          sidebarPath: './sidebars.ts',
-          editUrl: undefined, // hides "Edit this page"
-          routeBasePath: '/', // docs become the site root
-        },
-        blog: false, // disable unused blog plugin
-        theme: {
-          customCss: './src/css/custom.css',
-        },
-      } satisfies Preset.Options,
+    presets: [
+        [
+            'classic',
+            {
+                docs: {
+                    sidebarPath: './sidebars.ts',
+                    editUrl: undefined, // hides "Edit this page"
+                    routeBasePath: '/', // docs become the site root
+                },
+                blog: false, // disable unused blog plugin
+                theme: {
+                    customCss: './src/css/custom.css',
+                },
+            } satisfies Preset.Options,
+        ],
     ],
-  ],
 
-  themeConfig: {
-    image: 'img/social-card.png',
-    colorMode: {
-      defaultMode: 'light',
-      disableSwitch: true,
-    },
-
-    navbar: {
-      title: 'Onboarding Knowledge Base',
-      logo: {
-        alt: 'Ghost Onboarder Logo',
-        src: 'img/logo.svg',
-      },
-      items: [
-        { to: '/graph', label: 'Graph View', position: 'right' },
-      ],
-    },
-
-    footer: {
-      style: 'light',
-      links: [
-        {
-          title: 'Resources',
-          items: [
-            { label: 'Graph View', to: '/graph' },
-          ],
+    themeConfig: {
+        image: 'img/unbored-social-card.png',
+        colorMode: {
+            defaultMode: 'light',
+            disableSwitch: true,
         },
-      ],
-      copyright: `Copyright © ${new Date().getFullYear()} unbored.AI. Built with Docusaurus.`,
-    },
 
-    prism: {
-      theme: prismThemes.github,
-    },
-  } satisfies Preset.ThemeConfig,
+        navbar: {
+            title: 'Onboarding Knowledge Base',
+            logo: {
+                alt: 'Ghost Onboarder Logo',
+                src: 'img/logo.svg',
+            },
+            items: [
+                { to: '/graph', label: 'Graph View', position: 'right' },
+            ],
+        },
+
+        footer: {
+            style: 'light',
+            links: [
+                {
+                    title: 'Resources',
+                    items: [
+                        { label: 'Graph View', to: '/graph' },
+                    ],
+                },
+            ],
+            copyright: `Copyright © ${new Date().getFullYear()} unbored.AI. Built with Docusaurus.`,
+        },
+
+        prism: {
+            theme: prismThemes.github,
+        },
+    } satisfies Preset.ThemeConfig,
 };
 
 export default config;
