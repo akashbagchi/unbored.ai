@@ -67,6 +67,7 @@ KEY_PATHS = [
     "CONTRIBUTING.md",
     "CHANGELOG.md",
     "package.json",
+    "tsconfig.json",
     "requirements.txt",
     "pyproject.toml",
     "setup.py",
@@ -76,17 +77,27 @@ KEY_PATHS = [
     "go.mod",
     "Cargo.toml",
     "Gemfile",
+    "composer.json",
     "pom.xml",
     "build.gradle",
+    "build.gradle.kts",
     "settings.gradle",
     "Dockerfile",
     "docker-compose.yml",
+    "compose.yaml",
     "Makefile",
     ".tool-versions",
     ".nvmrc",
     ".python-version",
     ".env.example",
     "devcontainer.json",
+    "deno.json",
+    "deno.jsonc",
+    "turbo.json",
+    "nx.json",
+    "lerna.json",
+    "pnpm-workspace.yaml",
+    "ruff.toml",
     ".github/workflows",  # directory (handled specially)
 ]
 
@@ -232,26 +243,56 @@ def _detect_ecosystem(root: Path) -> Dict[str, Any]:
             deps.update(pkg.get("dependencies", {}) or {})
             deps.update(pkg.get("devDependencies", {}) or {})
             names = set(map(str.lower, deps.keys()))
-            if "next" in names or "nextjs" in names:
-                frameworks.append("nextjs")
-            if "react" in names or "preact" in names:
-                frameworks.append("react")
-            if "vite" in names:
-                frameworks.append("vite")
-            if "express" in names:
-                frameworks.append("express")
-            if "nuxt" in names:
-                frameworks.append("nuxt")
-            if "vue" in names:
-                frameworks.append("vue")
+            for dep, fw in [
+                ("next", "nextjs"), ("nextjs", "nextjs"),
+                ("react", "react"), ("preact", "react"),
+                ("vite", "vite"),
+                ("express", "express"),
+                ("fastify", "fastify"),
+                ("hono", "hono"),
+                ("nuxt", "nuxt"),
+                ("vue", "vue"),
+                ("svelte", "svelte"), ("@sveltejs/kit", "svelte"),
+                ("astro", "astro"),
+                ("remix", "remix"), ("@remix-run/node", "remix"),
+            ]:
+                if dep in names and fw not in frameworks:
+                    frameworks.append(fw)
         except Exception:
             pass
+
+    if exists("deno.json") or exists("deno.jsonc"):
+        if primary is None:
+            primary = "deno"
+        else:
+            secondaries.append("deno")
+
+    if exists("bun.lockb"):
+        if primary is None:
+            primary = "bun"
+        else:
+            secondaries.append("bun")
 
     if exists("pyproject.toml") or exists("requirements.txt") or exists("setup.py"):
         if primary is None:
             primary = "python"
         else:
             secondaries.append("python")
+        _py_fw_map = {
+            "django": "django", "flask": "flask", "fastapi": "fastapi",
+            "starlette": "starlette", "tornado": "tornado",
+            "aiohttp": "aiohttp", "litestar": "litestar",
+        }
+        for req_file in ["requirements.txt", "requirements-dev.txt", "pyproject.toml"]:
+            rp = root / req_file
+            if rp.exists():
+                try:
+                    content = rp.read_text(encoding="utf-8", errors="ignore").lower()
+                    for pkg_name, fw_name in _py_fw_map.items():
+                        if pkg_name in content and fw_name not in frameworks:
+                            frameworks.append(fw_name)
+                except Exception:
+                    pass
 
     if exists("go.mod"):
         primary = primary or "go"
@@ -263,7 +304,53 @@ def _detect_ecosystem(root: Path) -> Dict[str, Any]:
         if primary != "rust":
             secondaries.append("rust")
 
-    if exists("Dockerfile"):
+    if exists("pom.xml"):
+        primary = primary or "java"
+        if primary != "java":
+            secondaries.append("java")
+
+    if exists("build.gradle") or exists("build.gradle.kts"):
+        primary = primary or "java"
+        if primary != "java":
+            secondaries.append("java")
+        if exists("build.gradle.kts") and "kotlin" not in frameworks:
+            frameworks.append("kotlin")
+
+    if any(root.glob("*.csproj")) or any(root.glob("*.sln")) or exists("global.json"):
+        primary = primary or "dotnet"
+        if primary != "dotnet":
+            secondaries.append("dotnet")
+
+    if exists("Gemfile"):
+        primary = primary or "ruby"
+        if primary != "ruby":
+            secondaries.append("ruby")
+        try:
+            content = (root / "Gemfile").read_text(encoding="utf-8", errors="ignore").lower()
+            if "rails" in content:
+                frameworks.append("rails")
+            elif "sinatra" in content:
+                frameworks.append("sinatra")
+        except Exception:
+            pass
+
+    if exists("composer.json"):
+        primary = primary or "php"
+        if primary != "php":
+            secondaries.append("php")
+        try:
+            data = json.loads(
+                (root / "composer.json").read_text(encoding="utf-8", errors="ignore")
+            )
+            all_deps = set(map(str.lower, (data.get("require", {}) or {}).keys()))
+            if "laravel/framework" in all_deps:
+                frameworks.append("laravel")
+            elif "symfony/framework-bundle" in all_deps:
+                frameworks.append("symfony")
+        except Exception:
+            pass
+
+    if exists("Dockerfile") or exists("compose.yaml") or exists("docker-compose.yml"):
         secondaries.append("docker")
 
     secondaries = list(dict.fromkeys(secondaries))
@@ -333,7 +420,7 @@ def _sample_folder_files(root: Path) -> List[Dict[str, Any]]:
         prioritized = [p for p in code_files if p.suffix.lower() in LANG_EXT]
         candidates = prioritized or code_files
         candidates = sorted(
-            candidates, key=lambda p: p.stat().st_size if p.exists() else 0
+            candidates, key=lambda p: p.stat().st_size if p.exists() else 0, reverse=True
         )[:2]
         if not candidates:
             continue
@@ -352,6 +439,51 @@ def _sample_folder_files(root: Path) -> List[Dict[str, Any]]:
     return samples
 
 
+def _detect_test_framework(root: Path, files: List[Dict[str, Any]]) -> Optional[str]:
+    if (root / "pytest.ini").exists() or (root / "conftest.py").exists():
+        return "pytest"
+    if exists_under := (root / "pyproject.toml"):
+        try:
+            content = exists_under.read_text(encoding="utf-8", errors="ignore")
+            if "[tool.pytest" in content:
+                return "pytest"
+        except Exception:
+            pass
+    if (root / "package.json").exists():
+        try:
+            pkg = json.loads(
+                (root / "package.json").read_text(encoding="utf-8", errors="ignore")
+            )
+            deps = {}
+            deps.update(pkg.get("dependencies", {}) or {})
+            deps.update(pkg.get("devDependencies", {}) or {})
+            names = set(map(str.lower, deps.keys()))
+            if "vitest" in names:
+                return "vitest"
+            if "jest" in names or "@jest/core" in names:
+                return "jest"
+            if "mocha" in names:
+                return "mocha"
+            if "jasmine" in names:
+                return "jasmine"
+        except Exception:
+            pass
+    if (root / "Gemfile").exists():
+        try:
+            content = (root / "Gemfile").read_text(encoding="utf-8", errors="ignore").lower()
+            if "rspec" in content:
+                return "rspec"
+            if "minitest" in content:
+                return "minitest"
+        except Exception:
+            pass
+    if (root / "Cargo.toml").exists():
+        return "cargo-test"
+    if (root / "go.mod").exists():
+        return "go-test"
+    return None
+
+
 # --------- Public: scan summary ---------
 def scan_repo(
     root_path: str | Path, top_n_important: Optional[int] = None
@@ -360,13 +492,30 @@ def scan_repo(
     files = _build_file_list(root)
     signals = {
         "has_tests": any(
-            Path(f["path"]).parts[0].lower().startswith(("test", "tests"))
+            Path(f["path"]).parts[0].lower() in ("test", "tests", "spec", "__tests__", "specs")
             for f in files
         ),
-        "has_ci": (root / ".github" / "workflows").exists(),
+        "has_ci": (root / ".github" / "workflows").exists()
+            or (root / ".circleci").exists()
+            or (root / ".gitlab-ci.yml").exists(),
         "has_containerization": (root / "Dockerfile").exists()
-        or (root / "docker-compose.yml").exists(),
+            or (root / "docker-compose.yml").exists()
+            or (root / "compose.yaml").exists(),
         "has_migrations": any("migrations" in Path(f["path"]).parts for f in files),
+        "has_linting": any(
+            (root / p).exists()
+            for p in [
+                ".eslintrc", ".eslintrc.js", ".eslintrc.cjs", ".eslintrc.json",
+                ".eslintrc.yaml", ".eslintrc.yml",
+                ".flake8", "ruff.toml", ".ruff.toml", "pylintrc", ".pylintrc",
+                ".stylelintrc", ".stylelintrc.json",
+            ]
+        ),
+        "test_framework": _detect_test_framework(root, files),
+        "has_monorepo": any(
+            (root / p).exists()
+            for p in ["pnpm-workspace.yaml", "lerna.json", "nx.json", "turbo.json", "rush.json"]
+        ),
     }
     result: Dict[str, Any] = {
         "root": root.as_posix(),
@@ -425,6 +574,13 @@ RE_PY_IMPORTS = re.compile(
     re.MULTILINE,
 )
 
+_GO_EXTS = {".go"}
+_RUST_EXTS = {".rs"}
+
+RE_GO_IMPORT_BLOCK = re.compile(r'import\s*\(\s*(.*?)\s*\)', re.DOTALL)
+RE_GO_IMPORT_LINE = re.compile(r'(?:[\w.]+\s+)?"([^"]+)"')
+RE_GO_IMPORT_SINGLE = re.compile(r'^import\s+(?:[\w.]+\s+)?"([^"]+)"', re.MULTILINE)
+
 
 def _read_text(path: Path) -> str:
     try:
@@ -458,6 +614,26 @@ def _resolve_js_like(spec: str, src_file: Path, root: Path) -> Optional[Path]:
     return None
 
 
+def _resolve_js_alias(spec: str, root: Path, aliases: Dict[str, str]) -> Optional[Path]:
+    for prefix, replacement in aliases.items():
+        if not prefix or not spec.startswith(prefix):
+            continue
+        remainder = spec[len(prefix):]
+        base = (root / replacement / remainder).resolve()
+        if base.suffix and base.exists():
+            return base
+        for ext in _JS_TS_FILE_EXTS_TRY:
+            cand = Path(str(base) + ext)
+            if cand.exists():
+                return cand
+        if base.exists() and base.is_dir():
+            for name in _JS_TS_INDEX_CANDIDATES:
+                cand = base / name
+                if cand.exists():
+                    return cand
+    return None
+
+
 def _resolve_py_like(module: str, src_file: Path, root: Path) -> Optional[Path]:
     if not module.startswith("."):
         return None
@@ -476,7 +652,85 @@ def _resolve_py_like(module: str, src_file: Path, root: Path) -> Optional[Path]:
     return None
 
 
-def _extract_imports_for_file(fpath: Path, root: Path):
+def _parse_go_module(root: Path) -> Optional[str]:
+    go_mod = root / "go.mod"
+    if not go_mod.exists():
+        return None
+    for line in go_mod.read_text(encoding="utf-8", errors="ignore").splitlines():
+        if line.strip().startswith("module "):
+            parts = line.strip().split()
+            return parts[1] if len(parts) >= 2 else None
+    return None
+
+
+def _resolve_go_like(spec: str, root: Path, module_name: str) -> Optional[Path]:
+    if not spec.startswith(module_name + "/"):
+        return None
+    rel = spec[len(module_name) + 1:]
+    if not rel:
+        return None
+    pkg_dir = root / rel
+    if pkg_dir.exists() and pkg_dir.is_dir():
+        for f in sorted(pkg_dir.glob("*.go")):
+            if not f.name.endswith("_test.go"):
+                return f
+    return None
+
+
+def _find_rust_src_root(root: Path) -> Path:
+    src = root / "src"
+    return src if src.exists() else root
+
+
+def _resolve_rust_like(
+    anchor: str, mod_path: str, src_file: Path, rust_src: Path
+) -> Optional[Path]:
+    parts = []
+    for p in mod_path.split("::"):
+        p = p.strip()
+        if not p or not re.match(r"^[a-z_][a-z0-9_]*$", p):
+            break
+        parts.append(p)
+    if not parts:
+        return None
+    base = rust_src if anchor == "crate" else src_file.parent
+    target = base.joinpath(*parts)
+    if target.with_suffix(".rs").exists():
+        return target.with_suffix(".rs")
+    if (target / "mod.rs").exists():
+        return target / "mod.rs"
+    return None
+
+
+def _load_ts_path_aliases(root: Path) -> Dict[str, str]:
+    aliases: Dict[str, str] = {}
+    for name in ["tsconfig.json", "tsconfig.base.json", "tsconfig.app.json"]:
+        cfg = root / name
+        if not cfg.exists():
+            continue
+        try:
+            data = json.loads(cfg.read_text(encoding="utf-8", errors="ignore"))
+            paths = data.get("compilerOptions", {}).get("paths", {})
+            for alias_pat, targets in paths.items():
+                if not targets:
+                    continue
+                alias_key = alias_pat.rstrip("*")
+                target_val = targets[0].rstrip("*")
+                aliases[alias_key] = target_val
+        except Exception:
+            pass
+        break
+    return aliases
+
+
+def _extract_imports_for_file(
+    fpath: Path,
+    root: Path,
+    *,
+    go_module: Optional[str] = None,
+    rust_src: Optional[Path] = None,
+    ts_aliases: Optional[Dict[str, str]] = None,
+):
     text = _read_text(fpath)
     suffix = fpath.suffix.lower()
     if suffix == ".vue":
@@ -494,6 +748,8 @@ def _extract_imports_for_file(fpath: Path, root: Path):
             if not spec:
                 continue
             tgt = _resolve_js_like(spec, fpath, root)
+            if not tgt and ts_aliases and not spec.startswith("."):
+                tgt = _resolve_js_alias(spec, root, ts_aliases)
             if not tgt:
                 continue
             try:
@@ -514,13 +770,67 @@ def _extract_imports_for_file(fpath: Path, root: Path):
             except Exception:
                 continue
 
+    elif suffix in _GO_EXTS and go_module:
+        cleaned = RE_GO_IMPORT_BLOCK.sub("__BLOCK__", text)
+        for block_m in RE_GO_IMPORT_BLOCK.finditer(text):
+            for line_m in RE_GO_IMPORT_LINE.finditer(block_m.group(1)):
+                spec = line_m.group(1)
+                tgt = _resolve_go_like(spec, root, go_module)
+                if not tgt:
+                    continue
+                try:
+                    yield tgt.resolve().relative_to(root.resolve())
+                except Exception:
+                    continue
+        for m in RE_GO_IMPORT_SINGLE.finditer(cleaned):
+            spec = m.group(1)
+            tgt = _resolve_go_like(spec, root, go_module)
+            if not tgt:
+                continue
+            try:
+                yield tgt.resolve().relative_to(root.resolve())
+            except Exception:
+                continue
+
+    elif suffix in _RUST_EXTS and rust_src:
+        for m in re.finditer(
+            r"^\s*use\s+(crate|super)::([^;{\s\\*]+)", text, re.MULTILINE
+        ):
+            tgt = _resolve_rust_like(m.group(1), m.group(2), fpath, rust_src)
+            if not tgt:
+                continue
+            try:
+                yield tgt.resolve().relative_to(root.resolve())
+            except Exception:
+                continue
+        for block_m in re.finditer(
+            r"^\s*use\s+(crate|super)::\{([^}]+)\}", text, re.MULTILINE
+        ):
+            anchor = block_m.group(1)
+            for item in block_m.group(2).split(","):
+                item = item.strip()
+                tgt = _resolve_rust_like(anchor, item, fpath, rust_src)
+                if not tgt:
+                    continue
+                try:
+                    yield tgt.resolve().relative_to(root.resolve())
+                except Exception:
+                    continue
+
 
 def build_dependency_graph(root_path: str | Path) -> Dict[str, Any]:
     """
     Return {"nodes":[{"id": "...", "label": "..."}], "edges":[{"source":"...","target":"..."}]}
-    Only considers relative imports in JS/TS/Vue and Python files.
+    Supports relative imports in JS/TS/Vue, Python, Go (module-relative), and Rust (crate-relative).
     """
     root = Path(root_path).resolve()
+
+    go_module = _parse_go_module(root)
+    rust_src = _find_rust_src_root(root) if (root / "Cargo.toml").exists() else None
+    ts_aliases = _load_ts_path_aliases(root)
+
+    _ALL_SRC_EXTS = _JS_TS_EXTS | _PY_EXTS | _GO_EXTS | _RUST_EXTS
+
     src_files: List[Path] = []
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if not _should_ignore_dir(d)]
@@ -528,7 +838,7 @@ def build_dependency_graph(root_path: str | Path) -> Dict[str, Any]:
             p = Path(dirpath) / fn
             if _is_binary(p):
                 continue
-            if p.suffix.lower() in (_JS_TS_EXTS | _PY_EXTS):
+            if p.suffix.lower() in _ALL_SRC_EXTS:
                 src_files.append(p)
 
     node_ids: Dict[str, Dict[str, str]] = {}
@@ -545,7 +855,12 @@ def build_dependency_graph(root_path: str | Path) -> Dict[str, Any]:
 
     for f in src_files:
         src_rel = f.relative_to(root)
-        for tgt_rel in _extract_imports_for_file(f, root):
+        for tgt_rel in _extract_imports_for_file(
+            f, root,
+            go_module=go_module,
+            rust_src=rust_src,
+            ts_aliases=ts_aliases,
+        ):
             _add_node(tgt_rel)
             edges.append({"source": src_rel.as_posix(), "target": tgt_rel.as_posix()})
 
