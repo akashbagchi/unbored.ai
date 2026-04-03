@@ -333,3 +333,101 @@ pre code {
   font-weight: 500;
   color: #000000;
 }
+
+/* ─── Dark mode (warm-dark) ──────────────────────────────────────────────── */
+/*
+ * Warm-dark palette derived from the ElevenLabs design system spirit.
+ * Rather than neutral grays, all surfaces use warm-tinted near-blacks
+ * and warm off-white text — the same warm stone undertone inverted.
+ *
+ * Palette:
+ *   Background      #0f0e0d  warm near-black
+ *   Surface         #1a1816  warm elevated
+ *   Card / code     #201e1b  warm raised
+ *   Border          #2e2b27  warm subtle border
+ *   Border strong   #3d3830  warm medium border
+ *   Text primary    #f0ede8  warm off-white
+ *   Text secondary  #9a9186  warm gray (mirrors #777169 light)
+ *   Text muted      #6b6358  warm muted
+ */
+[data-theme='dark'] {
+  --ifm-background-color: #0f0e0d;
+  --ifm-background-surface-color: #1a1816;
+  --ifm-navbar-background-color: #0f0e0d;
+  --ifm-footer-background-color: #0f0e0d;
+  --ifm-font-color-base: #f0ede8;
+  --ifm-font-color-secondary: #9a9186;
+  --ifm-code-background: #201e1b;
+  --docusaurus-highlighted-code-line-bg: rgba(245, 242, 239, 0.05);
+  --ifm-navbar-link-color: #f0ede8;
+  --ifm-navbar-link-hover-color: #9a9186;
+  --ifm-menu-color: #f0ede8;
+  --ifm-menu-color-active: #f0ede8;
+  --ifm-menu-color-background-active: #201e1b;
+  --ifm-menu-color-background-hover: #201e1b;
+  --ifm-footer-color: #9a9186;
+  --ifm-footer-link-color: #9a9186;
+  --ifm-footer-link-hover-color: #f0ede8;
+  --stone-50: #1a1816;
+  --stone-100: #242018;
+  --stone-200: #332f28;
+  --stone-600: #8a8178;
+  --card-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.5),
+    0 2px 6px rgba(0, 0, 0, 0.45),
+    0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme='dark'] h1,
+[data-theme='dark'] h2,
+[data-theme='dark'] h3,
+[data-theme='dark'] h4,
+[data-theme='dark'] h5,
+[data-theme='dark'] h6,
+[data-theme='dark'] .markdown h1,
+[data-theme='dark'] .markdown h2,
+[data-theme='dark'] .markdown h3,
+[data-theme='dark'] .markdown h4 {
+  color: #f0ede8;
+}
+
+[data-theme='dark'] .navbar { border-bottom: 1px solid rgba(245, 242, 239, 0.04); }
+[data-theme='dark'] .navbar__title { color: #f0ede8; }
+[data-theme='dark'] .navbar__link { color: #f0ede8; }
+[data-theme='dark'] .navbar__link:hover,
+[data-theme='dark'] .navbar__link--active { color: #9a9186; }
+
+[data-theme='dark'] .menu__link { color: #f0ede8; }
+[data-theme='dark'] .menu__link:hover { background: #201e1b; color: #f0ede8; }
+[data-theme='dark'] .menu__link--active,
+[data-theme='dark'] .menu__link--active:hover { background: #201e1b; color: #f0ede8; }
+
+[data-theme='dark'] .markdown { color: #f0ede8; }
+[data-theme='dark'] .markdown p { color: #dedad4; }
+[data-theme='dark'] .markdown strong { color: #f0ede8; }
+
+[data-theme='dark'] code { background: #201e1b; border-color: #2e2b27; color: #f0ede8; }
+
+[data-theme='dark'] .admonition { background: #1a1816; border-color: #2e2b27; }
+[data-theme='dark'] .admonition-heading h5 { color: #f0ede8; }
+
+[data-theme='dark'] .button--primary { background: #1a1816; color: #f0ede8; border-color: #2e2b27; }
+[data-theme='dark'] .button--primary:hover { background: #242018; color: #f0ede8; }
+[data-theme='dark'] .button--secondary { background: #f0ede8; color: #0f0e0d; border-color: #f0ede8; }
+[data-theme='dark'] .button--secondary:hover { background: #dedad4; color: #0f0e0d; }
+
+[data-theme='dark'] .footer { background: #0f0e0d; border-top-color: #242018; }
+[data-theme='dark'] .footer__title { color: #f0ede8; }
+[data-theme='dark'] .footer__link-item { color: #9a9186; }
+[data-theme='dark'] .footer__link-item:hover { color: #f0ede8; }
+[data-theme='dark'] .footer__copyright { color: #6b6358; }
+
+[data-theme='dark'] .table-of-contents__link { color: #9a9186; }
+[data-theme='dark'] .table-of-contents__link:hover,
+[data-theme='dark'] .table-of-contents__link--active { color: #f0ede8; }
+
+[data-theme='dark'] .breadcrumbs__link { color: #9a9186; }
+
+[data-theme='dark'] .pagination-nav__link { border-color: #242018; }
+[data-theme='dark'] .pagination-nav__link:hover { border-color: #2e2b27; background: #1a1816; }
+[data-theme='dark'] .pagination-nav__label { color: #f0ede8; }

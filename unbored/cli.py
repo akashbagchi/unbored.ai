@@ -12,6 +12,7 @@ from pathlib import Path
 from .generator import generate_all, update_existing_site
 from .config import load_config, save_config, resolve_token
 
+
 def _save_snapshot(output_dir: Path):
     """Save current git commit hash and timestamp to generation_snapshot.json."""
     try:
@@ -30,7 +31,9 @@ def _save_snapshot(output_dir: Path):
             "generated_at": datetime.now(timezone.utc).isoformat(),
         }
         output_dir.mkdir(parents=True, exist_ok=True)
-        (output_dir / "generation_snapshot.json").write_text(json.dumps(snapshot, indent=2))
+        (output_dir / "generation_snapshot.json").write_text(
+            json.dumps(snapshot, indent=2)
+        )
     except Exception:
         pass
 
@@ -64,7 +67,17 @@ def _check_diff(repo_path: str, output_dir: Path):
         return ("unchanged", 0)
 
     # Diff only source-significant files
-    source_globs = ["*.py", "*.js", "*.ts", "*.tsx", "*.jsx", "*.go", "*.java", "*.rb", "*.rs"]
+    source_globs = [
+        "*.py",
+        "*.js",
+        "*.ts",
+        "*.tsx",
+        "*.jsx",
+        "*.go",
+        "*.java",
+        "*.rb",
+        "*.rs",
+    ]
     try:
         diff_result = subprocess.run(
             ["git", "diff", "--shortstat", stored_commit, "HEAD", "--"] + source_globs,
@@ -92,14 +105,12 @@ def update_gitignore(repo_path):
     """Add .unbored to .gitignore if not already present"""
     gitignore_path = Path(repo_path) / ".gitignore"
 
-    # Read existing content
     content = ""
     if gitignore_path.exists():
         content = gitignore_path.read_text()
         if ".unbored" in content:
             return  # Already there
 
-    # Add .unbored to .gitignore
     try:
         with open(gitignore_path, "a") as f:
             # Add newline before if file doesn't end with one
@@ -120,7 +131,6 @@ def _mask(value: str) -> str:
 
 
 def handle_config(args):
-    """Handle the 'config' subcommand."""
     if args.config_action == "set":
         valid_keys = {"github_token", "anthropic_api_key"}
         if args.key not in valid_keys:
@@ -155,7 +165,7 @@ def main():
     """Main CLI entry point - runs from current directory"""
 
     parser = argparse.ArgumentParser(
-            description="unbored.AI - Generate onboarding documentation for any repository"
+        description="unbored.AI - Generate onboarding documentation for any repository"
     )
     subparsers = parser.add_subparsers(dest="command")
 
@@ -171,31 +181,30 @@ def main():
     config_sub.add_parser("clear", help="Clear all config")
 
     # --- view subcommand ---
-    subparsers.add_parser("view", help="Launch existing documentation site without regenerating")
+    subparsers.add_parser(
+        "view", help="Launch existing documentation site without regenerating"
+    )
 
     # --- main pipeline flags ---
     parser.add_argument(
-            "--skip_github",
-            action="store_true",
-            help="Skip GitHub issues discovery (useful for private repos without access tokens)"
+        "--skip_github",
+        action="store_true",
+        help="Skip GitHub issues discovery (useful for private repos without access tokens)",
     )
     parser.add_argument(
-            "--github-token",
-            help="GitHub personal access token (overrides env var and config)"
+        "--github-token",
+        help="GitHub personal access token (overrides env var and config)",
     )
     parser.add_argument(
-            "--api-key",
-            help="Anthropic API key (overrides env var and config)"
+        "--api-key", help="Anthropic API key (overrides env var and config)"
     )
 
     args = parser.parse_args()
 
-    # Route to config handler
     if args.command == "config":
         handle_config(args)
         return
 
-    # Route to view handler
     if args.command == "view":
         site_dir = Path(os.getcwd()) / ".unbored" / "site"
         docs_dir = site_dir / "docs"
@@ -206,11 +215,9 @@ def main():
         subprocess.run(["npm", "start"], cwd=site_dir)
         return
 
-    # Resolve tokens
     github_token = resolve_token(args.github_token, "GITHUB_TOKEN", "github_token")
     api_key = resolve_token(args.api_key, "ANTHROPIC_API_KEY", "anthropic_api_key")
 
-    # Get current working directory
     repo_path = os.getcwd()
 
     # Infer repo name from git remote or directory name
@@ -221,17 +228,17 @@ def main():
             cwd=repo_path,
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
         if result.returncode == 0:
             url = result.stdout.strip()
-            # Extract username/repo from git URL
+
             if "github.com" in url:
                 parts = url.split("github.com")[-1]
                 parts = parts.lstrip(":/").rstrip("/")
                 parts = parts.replace(".git", "")
                 repo_name = parts
-    except:
+    except Exception:
         pass
 
     print("🤖 unbored.AI")
@@ -245,14 +252,12 @@ def main():
     output_dir = Path(repo_path) / ".unbored"
     site_dir = output_dir / "site"
 
-    # Create output directory
     output_dir.mkdir(exist_ok=True)
 
-    # Add .unbored to .gitignore
     update_gitignore(repo_path)
 
-    # Copy template site if needed
     import shutil
+
     if not site_dir.exists():
         print("📦 Setting up documentation site...")
         if template_site.exists():
@@ -269,6 +274,7 @@ def main():
             if src.exists():
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(src, dst)
+
         # Remove old homepage files that are no longer part of the template
         for stale in [
             "src/pages/index.tsx",
@@ -282,7 +288,6 @@ def main():
         if stale_dir.exists():
             shutil.rmtree(stale_dir)
 
-    # Check for changes since last generation
     status, lines_changed = _check_diff(repo_path, output_dir / "outputs")
     if status == "unchanged":
         print("✅ No changes since last generation. Launching existing docs...")
@@ -291,23 +296,23 @@ def main():
     elif status == "changed":
         MINOR_THRESHOLD = 20
         if lines_changed <= MINOR_THRESHOLD:
-            print(f"⚠️  Minor changes detected ({lines_changed} lines changed since last generation).")
+            print(
+                f"⚠️  Minor changes detected ({lines_changed} lines changed since last generation)."
+            )
             answer = input("Regenerate documentation? [y/N] ").strip().lower()
             if answer != "y":
                 print("Launching existing docs...")
                 subprocess.run(["npm", "start"], cwd=site_dir)
                 return
 
-    # Run pipeline
     try:
-        # Generate all analysis data and Claude documentation
         output_path, onboarding_doc = generate_all(
-                repo_path=repo_path,
-                output_dir=str(output_dir / "outputs"),
-                gh_repo=repo_name if not args.skip_github else None,
-                gh_token=github_token,
-                skip_github=args.skip_github,
-                api_key=api_key,
+            repo_path=repo_path,
+            output_dir=str(output_dir / "outputs"),
+            gh_repo=repo_name if not args.skip_github else None,
+            gh_token=github_token,
+            skip_github=args.skip_github,
+            api_key=api_key,
         )
 
         if onboarding_doc and site_dir.exists():
@@ -315,16 +320,17 @@ def main():
             update_existing_site(onboarding_doc, repo_name, str(site_dir))
             _save_snapshot(output_dir / "outputs")
 
-            # Start the dev server
             print("\n🚀 Starting documentation server...")
             print(f"📖 Opening documentation at http://localhost:3000")
-
-            # Start npm
             subprocess.run(["npm", "start"], cwd=site_dir)
 
-            print("\n\nℹ️ Once done reading the documentation docs, use Ctrl+C to stop the docusaurus server!")
+            print(
+                "\n\nℹ️ Once done reading the documentation docs, use Ctrl+C to stop the docusaurus server!"
+            )
         elif not onboarding_doc:
-            print("\n⚠️  Documentation generation returned empty. Check your API key configuration.")
+            print(
+                "\n⚠️  Documentation generation returned empty. Check your API key configuration."
+            )
             print("   💡 Set your Anthropic API key:")
             print("      unbored config set anthropic_api_key <your-key>")
             print("      or: export ANTHROPIC_API_KEY=<your-key>")
@@ -338,6 +344,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Error: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

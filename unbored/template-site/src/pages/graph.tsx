@@ -1,10 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import Layout from "@theme/Layout";
+import { useColorMode } from "@docusaurus/theme-common";
 
 function GraphClient() {
   const { ReactFlow, Background, Controls, MiniMap } = require("reactflow");
   require("reactflow/dist/style.css");
+
+  const { colorMode } = useColorMode();
+  const isDark = colorMode === "dark";
 
   const [g, setG] = useState<{ nodes: any[]; edges: any[] }>({ nodes: [], edges: [] });
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -39,7 +43,6 @@ function GraphClient() {
   ];
   const colorForLevel = (lvl: number) => LEVEL_COLORS[lvl % LEVEL_COLORS.length];
 
-  // Make an OPAQUE soft background by mixing stroke with white
   const mixWithWhite = (hex: string, t = 0.85) => {
     const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     if (!m) return "#ffffff";
@@ -47,7 +50,21 @@ function GraphClient() {
     const R = Math.round(r * (1 - t) + 255 * t);
     const G = Math.round(g * (1 - t) + 255 * t);
     const B = Math.round(b * (1 - t) + 255 * t);
-    const toHex = (v:number) => v.toString(16).padStart(2, "0");
+    const toHex = (v: number) => v.toString(16).padStart(2, "0");
+    return `#${toHex(R)}${toHex(G)}${toHex(B)}`;
+  };
+
+  // Mixes toward the warm dark surface (#1a1816) rather than pure black,
+  // keeping the warm stone undertone consistent with the design system.
+  const mixWithWarmDark = (hex: string, t = 0.80) => {
+    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!m) return "#1a1816";
+    const r = parseInt(m[1], 16), g = parseInt(m[2], 16), b = parseInt(m[3], 16);
+    const baseR = 26, baseG = 24, baseB = 22; // #1a1816
+    const R = Math.round(r * (1 - t) + baseR * t);
+    const G = Math.round(g * (1 - t) + baseG * t);
+    const B = Math.round(b * (1 - t) + baseB * t);
+    const toHex = (v: number) => v.toString(16).padStart(2, "0");
     return `#${toHex(R)}${toHex(G)}${toHex(B)}`;
   };
   // ----------------------------------------------------------------------
@@ -68,7 +85,7 @@ function GraphClient() {
 
       const level = getLevel(n.id);
       const stroke = colorForLevel(level);
-      const bg = mixWithWhite(stroke, 0.86); // opaque pastel (no alpha)
+      const bg = isDark ? mixWithWarmDark(stroke, 0.80) : mixWithWhite(stroke, 0.86);
 
       return {
         id: n.id,
@@ -77,10 +94,10 @@ function GraphClient() {
         style: {
           padding: 6,
           borderRadius: 12,
-          background: bg,                // OPAQUE fill so edges can't show through
+          background: bg,
           border: `1.5px solid ${stroke}`,
           fontSize: 11,
-          // Use opacity instead of filter - much more performant and won't trigger ResizeObserver
+          color: isDark ? "#f0ede8" : "#1a1a1a",
           opacity: isActive ? 1 : 0.25,
           transition: "opacity 120ms ease",
         },
@@ -88,7 +105,7 @@ function GraphClient() {
         title: `Level ${level} • ${n.id}`,
       };
     });
-  }, [g.nodes, hoveredId, neighbors]);
+  }, [g.nodes, hoveredId, neighbors, isDark]);
 
   const edges = useMemo(() => {
     return (g.edges || []).map((e, i) => {
@@ -106,13 +123,13 @@ function GraphClient() {
         className: touchesHover ? "edge-pulse" : "edge-dim",
         style: {
           strokeWidth: 1.2,
-          stroke: "#98A6B3",
+          stroke: isDark ? "#5c5248" : "#98A6B3",
           opacity: touchesHover ? 0.85 : 0.1,
           transition: "opacity 120ms ease",
         },
       };
     });
-  }, [g.edges, hoveredId, neighbors]);
+  }, [g.edges, hoveredId, neighbors, isDark]);
 
   return (
     <div
@@ -121,8 +138,8 @@ function GraphClient() {
         width: "100%",
         borderRadius: 0,
         overflow: "hidden",
-        background: "#fafafa",
-        borderTop: "1px solid #e9ecef",
+        background: isDark ? "#0f0e0d" : "#fafafa",
+        borderTop: isDark ? "1px solid #2e2b27" : "1px solid #e9ecef",
         position: "relative",
       }}
     >
@@ -152,8 +169,13 @@ function GraphClient() {
         minZoom={0.2}
         maxZoom={2}
       >
-        <Background />
-        <MiniMap pannable zoomable />
+        <Background color={isDark ? "#2e2b27" : undefined} />
+        <MiniMap
+          pannable
+          zoomable
+          nodeColor={(n) => colorForLevel(getLevel(n.id))}
+          style={{ background: isDark ? "#1a1816" : undefined }}
+        />
         <Controls position="bottom-right" />
       </ReactFlow>
     </div>

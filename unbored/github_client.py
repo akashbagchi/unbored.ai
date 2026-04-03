@@ -7,11 +7,31 @@ import os
 from github import Github, UnknownObjectException, GithubException  # PyGithub
 
 DEFAULT_KEYWORDS = {
-    'labels': ['bug', 'documentation', 'docs', 'question', 'help wanted',
-                'good first issue', 'setup', 'enhancement', 'feat'],
-    'body': ['how do i', 'how to', 'setup', 'install', 'getting started',
-                'environment', 'dependency', 'configuration', 'error', 'failed']
+    "labels": [
+        "bug",
+        "documentation",
+        "docs",
+        "question",
+        "help wanted",
+        "good first issue",
+        "setup",
+        "enhancement",
+        "feat",
+    ],
+    "body": [
+        "how do i",
+        "how to",
+        "setup",
+        "install",
+        "getting started",
+        "environment",
+        "dependency",
+        "configuration",
+        "error",
+        "failed",
+    ],
 }
+
 
 @dataclass
 class IssueLite:
@@ -30,6 +50,7 @@ class IssueLite:
     def to_json(self) -> Dict[str, Any]:
         return asdict(self)
 
+
 def _iso(t) -> Optional[str]:
     if not t:
         return None
@@ -40,6 +61,7 @@ def _iso(t) -> Optional[str]:
         return str(t)
     except Exception:
         return None
+
 
 class GitHubClient:
     def __init__(self, token: Optional[str] = None):
@@ -62,13 +84,13 @@ class GitHubClient:
         except GithubException as e:
             raise RuntimeError(f"GitHub error: {e.data or e.status}")
 
-        issues = repo.get_issues()  # PyGithub lacks sort=closed_at; we’ll slice manually later.
+        issues = (
+            repo.get_issues()
+        )  # PyGithub lacks sort=closed_at; we’ll slice manually later.
 
         out: List[IssueLite] = []
         count = 0
         for i in issues:  # most recently updated first
-            # Skip PRs (PyGithub: issue.pull_request is not None on PRs)
-            # TODO - Optionally give the option to include PRs if the user deems it sufficiently relevant.
             if getattr(i, "pull_request", None):
                 continue
             body = i.body or None
@@ -93,8 +115,7 @@ class GitHubClient:
             if count >= limit:
                 break
 
-        # Sort by closed_at desc if available; fallback to created_at
-        out.sort(key=lambda x: (x.closed_at or x.created_at or ""), reverse=True)
+        out.sort(key=lambda x: x.closed_at or x.created_at or "", reverse=True)
         return out
 
 
@@ -111,12 +132,14 @@ def keyword_filter(
     if not kw:
         results = []
         for i, iss in enumerate(issues):
-            if i>=50:
+            if i >= 50:
                 break
             rec = iss.to_json()
             rec["keyword_hits"] = 0
             results.append(rec)
-        results.sort(key = lambda r: r.get("closed_at") or r.get("created_at") or "", reverse=True)
+        results.sort(
+            key=lambda r: r.get("closed_at") or r.get("created_at") or "", reverse=True
+        )
         return results
 
     results: List[Dict[str, Any]] = []
@@ -139,10 +162,14 @@ def keyword_filter(
         if hits >= min_hits:
             results.append(rec)
 
-    # Fallback: no matches
     if not results:
         results = all_issues[:50]
 
-    # sort by hits desc then by closed_at desc
-    results.sort(key=lambda r: (r.get("keyword_hits", 0), r.get("closed_at") or r.get("created_at") or ""), reverse=True)
+    results.sort(
+        key=lambda r: (
+            r.get("keyword_hits", 0),
+            r.get("closed_at") or r.get("created_at") or "",
+        ),
+        reverse=True,
+    )
     return results

@@ -1,3 +1,12 @@
+### 0.6.0
+
+- Features:
+  - Added support for Go and Rust codebase discovery
+  - Added improved signal discovery (key paths, ecosystem detection, test frameworks, etc.)
+  - Dark mode toggle added
+- Fixes:
+  - '0 edge' issue in graph generation -> fixed a off-by-one error preventing proper discovery of graph edges
+
 ### 0.5.1
 
 - Features:
