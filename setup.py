@@ -9,31 +9,27 @@ if req_file.exists():
 
 setup(
     name="unbored",
-    version="0.4.0",
+    version="0.5.0",
     description="One command automated onboarding documentation generator",
     author="Akash Bagchi, Akshaya Nadathur, Pranjal Padakannaya, Sachin SS",
     packages=find_packages(),
     install_requires=requirements,
     entry_points={
-        'console_scripts': [
-            'unbored=unbored.cli:main',
+        "console_scripts": [
+            "unbored=unbored.cli:main",
         ],
     },
     include_package_data=True,
     package_data={
-        'unbored': [
-            'template-site/**/*',
-            'template-site/**/.*'
-        ],
+        "unbored": ["template-site/**/*", "template-site/**/.*"],
     },
-    python_requires='>=3.8,<4.0',
+    python_requires=">=3.8,<4.0",
     classifiers=[
-        'Development Status :: 3 - Alpha',
-        'Intended Audience :: Developers',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
-        'Programming Language :: Python :: 3.10',
-        'Programming Language :: Python :: 3.11',
+        "Development Status :: 3 - Alpha",
+        "Intended Audience :: Developers",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
     ],
 )
-
