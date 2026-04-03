@@ -3,7 +3,7 @@ import json
 import os
 import pytest
 from pathlib import Path
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 from unbored.generator import send_to_claude, update_existing_site, generate_all
 

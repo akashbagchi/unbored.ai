@@ -34,17 +34,7 @@ def save_config(data: dict):
 
 
 def resolve_token(cli_value: str | None, env_var: str, config_key: str) -> str | None:
-    """
-    Resolve a token with priority: CLI flag > env var > config file.
-
-    Args:
-        cli_value: Value passed via CLI flag (highest priority)
-        env_var: Environment variable name to check
-        config_key: Key in config.yaml to check (lowest priority)
-
-    Returns:
-        Resolved token string, or None if not found anywhere
-    """
+    """Resolve a token with priority: CLI flag > env var > config file."""
     if cli_value:
         return cli_value
     env_value = os.environ.get(env_var)

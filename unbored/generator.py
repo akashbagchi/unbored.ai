@@ -1,18 +1,14 @@
 """
-Update existing Docusaurus site with Claude-generated onboarding doc
-Usage: python generator.py <repo_path> <repo_name> [site_path]
+unbored.AI — Claude-powered onboarding documentation generator.
 """
 
 import json
-import subprocess
-import sys
 import os
 import anthropic
 from pathlib import Path
-import argparse
 from .scanner import scan_repo, build_dependency_graph
 from .github_client import GitHubClient, keyword_filter
-from .main_old import _write_jsonl, _iter_jsonl_records
+from .main_old import _iter_jsonl_records
 from .generate_graph_position import generate_graph_positions
 
 SYSTEM_PROMPT = """You are a senior software architect. Given repository scan data, a dependency graph, \
@@ -55,19 +51,6 @@ def generate_all(
     skip_github: bool = False,
     api_key: str | None = None,
 ):
-    """
-    Single command to generate all outputs
-
-    Args:
-        repo_path: Path to repository
-        output_dir: Output directory for generated files
-        gh_repo: GitHub repo in owner/name format (Optional)
-        gh_token: Github token for private repos (Optional)
-        issues_limit: Number of issues to fetch
-        issues_keywords: Keywords for filtering issues
-        skip_github: Skip GitHub issues discover entirely
-        api_key: Anthropic API key (Optional)
-    """
 
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True)
@@ -75,7 +58,6 @@ def generate_all(
     print("\n🔍 1/4 Scanning repository...")
     scan_data = scan_repo(repo_path)
 
-    # Write scan.jsonl
     scan_file = output_path / "scan.jsonl"
     with open(scan_file, "w") as f:
         for record in _iter_jsonl_records(
@@ -167,20 +149,9 @@ def generate_all(
 def send_to_claude(
     scan_file, repo_name, graph_file=None, issues_file=None, api_key=None
 ):
-    """
-    Call Claude API directly using the Anthropic SDK.
-
-    Args:
-        scan_file: Path to scan.jsonl
-        repo_name: Repository name
-        graph_file: Optional path to graph JSON
-        issues_file: Optional path to issues JSONL
-        api_key: Optional Anthropic API key
-    """
-    # Resolve API key
+    """Call Claude API directly using the Anthropic SDK."""
     resolved_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
     if not resolved_key:
-        # Try config file as last resort
         try:
             from .config import load_config
 
@@ -198,10 +169,8 @@ def send_to_claude(
         return None
 
     try:
-        # Load scan data (required)
         repo_data = Path(scan_file).read_text()
 
-        # Load graph data (optional)
         graph_data = ""
         if graph_file and Path(graph_file).exists():
             graph_json = json.loads(Path(graph_file).read_text())
@@ -220,14 +189,12 @@ Sample import relationships:
 """
             print(f"   ✓ Including graph: {num_nodes} nodes, {num_edges} edges")
 
-        # Load issues data (optional)
         issues_data = ""
         if issues_file and Path(issues_file).exists():
             issues_lines = Path(issues_file).read_text().strip().split("\n")
             issues_data = "\n".join(issues_lines[:20])  # Limit to 20 issues
             print(f"   ✓ Including {len(issues_lines)} issues")
 
-        # Build the user message
         user_message = f"Repository: {repo_name}\n\n"
         user_message += f"## Repository Scan Data\n{repo_data}\n\n"
         if graph_data:
@@ -253,7 +220,6 @@ Sample import relationships:
             if result_text.endswith("```"):
                 result_text = result_text[: result_text.rfind("```")].strip()
 
-        # Parse JSON array of page dicts
         try:
             pages = json.loads(result_text)
             if not isinstance(pages, list):
@@ -306,13 +272,7 @@ Sample import relationships:
 
 
 def update_existing_site(pages, repo_name, site_path):
-    """Update existing Docusaurus site with multi-page documentation.
-
-    Args:
-        pages: List of {filename, title, sidebar_position, content} dicts from Claude
-        repo_name: Repository name (used for site title update)
-        site_path: Path to the Docusaurus site directory
-    """
+    """Update existing Docusaurus site with multi-page documentation."""
     print("📝 Updating Docusaurus site...")
 
     site_dir = Path(site_path)
@@ -323,21 +283,15 @@ def update_existing_site(pages, repo_name, site_path):
     docs_dir = site_dir / "docs"
     docs_dir.mkdir(exist_ok=True)
 
-    # Clear previously generated .md files from docs/
     for existing_md in docs_dir.glob("*.md"):
         existing_md.unlink()
 
-    # Write each page with frontmatter
     for page in pages:
         filename = page.get("filename", "intro.md")
         title = page.get("title", "Documentation")
         sidebar_position = page.get("sidebar_position", 1)
         content = page.get("content", "")
 
-        # Build frontmatter
-        # format: md forces plain CommonMark parsing instead of MDX,
-        # preventing acorn parse errors on curly braces / angle brackets
-        # that Claude may emit in generated content.
         frontmatter_lines = [
             "---",
             f"sidebar_position: {sidebar_position}",
@@ -356,7 +310,6 @@ def update_existing_site(pages, repo_name, site_path):
         page_path.write_text(page_content)
         print(f"✅ Written {page_path.name}")
 
-    # Update title in docusaurus.config.ts if it exists
     config_path = site_dir / "docusaurus.config.ts"
     if config_path.exists():
         config_content = config_path.read_text()
@@ -381,63 +334,3 @@ def update_existing_site(pages, repo_name, site_path):
             print(f"✅ Updated site title to '{repo_name} Documentation'")
 
     return True
-
-
-def main():
-    parser = argparse.ArgumentParser(
-        description="Ghost Onboarder - Generate onboarding docs"
-    )
-    parser.add_argument(
-        "repo_path",
-        nargs="?",
-        default=".",
-        help="Repository path (default: current directory)",
-    )
-    parser.add_argument(
-        "--output", "-o", default="outputs", help="Output directory (default: outputs)"
-    )
-    parser.add_argument("--gh-repo", help="GitHub repo (owner/name) for issues")
-    parser.add_argument("--gh-token", help="GitHub token (or set GITHUB_TOKEN env var)")
-    parser.add_argument(
-        "--api-key", help="Anthropic API key (or set ANTHROPIC_API_KEY env var)"
-    )
-    parser.add_argument(
-        "--issues-limit",
-        type=int,
-        default=50,
-        help="Number of issues to fetch (default: 50)",
-    )
-    parser.add_argument(
-        "--site-path",
-        default="ghost-onboarder-site",
-        help="Docusaurus site path (default: ghost-onboarder-site)",
-    )
-
-    args = parser.parse_args()
-
-    print(f"🏁 Generating docs for {args.repo_path}")
-    print()
-
-    # Generate all outputs
-    output_path, onboarding_doc = generate_all(
-        repo_path=args.repo_path,
-        output_dir=args.output,
-        gh_repo=args.gh_repo,
-        gh_token=args.gh_token,
-        issues_limit=args.issues_limit,
-        api_key=args.api_key,
-    )
-
-    # Update site
-    if not update_existing_site(
-        onboarding_doc, args.gh_repo or args.repo_path, args.site_path
-    ):
-        sys.exit(1)
-
-    print()
-    print("🎉 Documentation generated successfully!")
-    print(f"💡 Start site: cd {args.site_path} && npm run build && npm run serve")
-
-
-if __name__ == "__main__":
-    main()

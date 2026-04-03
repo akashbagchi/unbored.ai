@@ -1,5 +1,5 @@
 """
-Graph layout generator for Ghost Onboarder.
+Graph layout generator for unbored.AI.
 
 Usage (CLI):
     python generate_graph_position.py [INPUT_JSON] [OUTPUT_JSON]
@@ -14,25 +14,27 @@ from math import log10
 from networkx.algorithms.community import greedy_modularity_communities
 from typing import Dict, Tuple, Any
 
-# ==== your existing filtering config can stay here if you merged earlier ====
-# (If you didn't add filters, you can ignore this section and feed a raw graph.json.)
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ---------------- I/O helpers ---------------- #
+
 
 def read_json(path: str) -> Dict[str, Any]:
     with open(path) as f:
         return json.load(f)
 
+
 def write_json(path: str, obj: Dict[str, Any]) -> None:
     with open(path, "w") as f:
         json.dump(obj, f, indent=2)
 
+
 def map_range(v: float, a: float, b: float, A: float, B: float) -> float:
     return (A + B) / 2 if a == b else A + (v - a) * (B - A) / (b - a)
 
+
 # ---------------- Layout helpers ---------------- #
+
 
 def adaptive_params(n: int) -> Tuple[float, float, float, int]:
     """
@@ -40,21 +42,22 @@ def adaptive_params(n: int) -> Tuple[float, float, float, int]:
     Grows spacing & separation with n while keeping runtime reasonable.
     """
     n = max(1, n)
-    lg = max(0.0, log10(n))           # 10→1, 100→2, 1000→3...
-    k      = 1.8 / (n ** 0.5) * (1.0 + 0.15 * lg)   # slightly stronger repel for large n
-    spread = 1.6 + 0.45 * lg                         # expand canvas for readability
-    min_d  = 80.0 + 22.0 * lg                        # raise no-clash distance
-    iters  = int(min(800, 220 + 4.0 * n))            # more iterations for stability, capped
+    lg = max(0.0, log10(n))  # 10→1, 100→2, 1000→3...
+    k = 1.8 / (n**0.5) * (1.0 + 0.15 * lg)  # slightly stronger repel for large n
+    spread = 1.6 + 0.45 * lg  # expand canvas for readability
+    min_d = 80.0 + 22.0 * lg  # raise no-clash distance
+    iters = int(min(800, 220 + 4.0 * n))  # more iterations for stability, capped
     return k, spread, min_d, iters
+
 
 def adaptive_viewport(n: int) -> Tuple[int, int]:
     """
     Scale viewport with size so labels don't pile up.
-    Keeps ~16:9, grows gently with sqrt(n).
     """
     base_w, base_h = 1800.0, 950.0
-    s = min(2.2, max(1.0, (n / 50.0) ** 0.5))        # 50 nodes ~= 1.0, 200 nodes ~= 2.0
+    s = min(2.2, max(1.0, (n / 50.0) ** 0.5))  # 50 nodes ~= 1.0, 200 nodes ~= 2.0
     return int(base_w * s), int(base_h * s)
+
 
 def de_overlap(pos: Dict[str, Tuple[float, float]], min_dist: float, passes: int = 3):
     nodes_list = list(pos.keys())
@@ -73,6 +76,7 @@ def de_overlap(pos: Dict[str, Tuple[float, float]], min_dist: float, passes: int
                     pos[nodes_list[j]] = (xj + ox, yj + oy)
     return pos
 
+
 def normalize_box(subpos: Dict[str, Tuple[float, float]]):
     xs = [p[0] for p in subpos.values()] or [0]
     ys = [p[1] for p in subpos.values()] or [0]
@@ -85,13 +89,13 @@ def normalize_box(subpos: Dict[str, Tuple[float, float]]):
         out[k] = ((x - minx) / w - 0.5, (y - miny) / h - 0.5)  # centered in [-0.5,0.5]
     return out
 
+
 def pack_communities(G: nx.Graph, iters: int, k_global: float):
     """
     Community-aware packing:
       1) Find communities (greedy modularity).
       2) Layout each community locally.
       3) Place community centroids on a circle.
-    Works without extra deps.
     """
     if G.number_of_nodes() == 0:
         return {}
@@ -137,21 +141,16 @@ def pack_communities(G: nx.Graph, iters: int, k_global: float):
 
     return pos
 
+
 # ---------------- Public API ---------------- #
 
+
 def generate_graph_positions(
-    in_path: str,
-    out_path: str,
-    *,
-    community_threshold: int = 60
+    in_path: str, out_path: str, *, community_threshold: int = 60
 ) -> None:
     """
     Read a graph JSON (nodes: [{id,label?}], edges: [{source,target}]),
     compute positions, and write an augmented JSON with x,y per node.
-
-    :param in_path:  Path to input graph.json
-    :param out_path: Path to output graph_with_pos.json
-    :param community_threshold: Use community packing when n >= this value
     """
     data = read_json(in_path)
 
@@ -208,25 +207,30 @@ def generate_graph_positions(
     out = {"nodes": nodes_out, "edges": data.get("edges", [])}
     write_json(out_path, out)
 
-    print(
-        f"Wrote {out_path} with {len(nodes_out)} nodes / {len(out['edges'])} edges."
-    )
+    print(f"Wrote {out_path} with {len(nodes_out)} nodes / {len(out['edges'])} edges.")
     print(
         f"Params: n={n}, k={k:.4f}, spread={spread:.2f}, min_dist={min_dist:.1f}, "
         f"iters={iterations}, viewport={WIDTH}x{HEIGHT}, "
         f"strategy={'communities' if n >= community_threshold else 'spring'}"
     )
 
+
 # ---------------- CLI entrypoint ---------------- #
 
+
 def main():
-    IN  = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
-        BASE_DIR, "../ghost-onboarder-site/static/graph.json"
+    IN = (
+        sys.argv[1]
+        if len(sys.argv) > 1
+        else os.path.join(BASE_DIR, ".unbored/site/static/graph.json")
     )
-    OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(
-        BASE_DIR, "../ghost-onboarder-site/static/graph_with_pos.json"
+    OUT = (
+        sys.argv[2]
+        if len(sys.argv) > 2
+        else os.path.join(BASE_DIR, ".unbored/site/static/graph_with_pos.json")
     )
     generate_graph_positions(IN, OUT)
+
 
 if __name__ == "__main__":
     main()

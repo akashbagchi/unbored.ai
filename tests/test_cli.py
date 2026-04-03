@@ -1,10 +1,11 @@
 """Tests for unbored/cli.py"""
+
 import json
 import sys
 import pytest
 from argparse import Namespace
 from pathlib import Path
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 from unbored.cli import (
     handle_config,
@@ -16,8 +17,10 @@ from unbored.cli import (
 
 # ── handle_config ─────────────────────────────────────────────────────────────
 
+
 def test_handle_config_set_valid_key(monkeypatch, tmp_path):
     from unbored import config
+
     cfg_dir = tmp_path / "unbored"
     monkeypatch.setattr(config, "CONFIG_DIR", cfg_dir)
     monkeypatch.setattr(config, "CONFIG_FILE", cfg_dir / "config.yaml")
@@ -26,6 +29,7 @@ def test_handle_config_set_valid_key(monkeypatch, tmp_path):
     handle_config(args)
 
     import yaml
+
     data = yaml.safe_load((cfg_dir / "config.yaml").read_text())
     assert data["github_token"] == "ghp_test123"
 
@@ -42,6 +46,7 @@ def test_handle_config_set_invalid_key(monkeypatch, capsys):
 def test_handle_config_show(monkeypatch, capsys, tmp_path):
     from unbored import config
     import yaml
+
     cfg_file = tmp_path / "config.yaml"
     cfg_file.write_text(yaml.safe_dump({"github_token": "ghp_abc123xyz"}))
     monkeypatch.setattr(config, "CONFIG_FILE", cfg_file)
@@ -58,6 +63,7 @@ def test_handle_config_show(monkeypatch, capsys, tmp_path):
 def test_handle_config_clear(monkeypatch, tmp_path):
     from unbored import config
     import yaml
+
     cfg_dir = tmp_path / "unbored"
     cfg_file = cfg_dir / "config.yaml"
     monkeypatch.setattr(config, "CONFIG_DIR", cfg_dir)
@@ -75,6 +81,7 @@ def test_handle_config_clear(monkeypatch, tmp_path):
 
 
 # ── update_gitignore ──────────────────────────────────────────────────────────
+
 
 def test_update_gitignore_adds_entry(tmp_path):
     gitignore = tmp_path / ".gitignore"
@@ -101,6 +108,7 @@ def test_update_gitignore_creates_if_missing(tmp_path):
 
 
 # ── _check_diff ───────────────────────────────────────────────────────────────
+
 
 def test_check_diff_no_snapshot(tmp_path):
     output_dir = tmp_path / "outputs"
@@ -150,8 +158,10 @@ def test_check_diff_changed(tmp_path):
 
 # ── main: view subcommand ─────────────────────────────────────────────────────
 
+
 def test_main_view_subcommand(tmp_path, monkeypatch):
     from unbored import cli
+
     site_dir = tmp_path / ".unbored" / "site"
     docs_dir = site_dir / "docs"
     docs_dir.mkdir(parents=True)
@@ -166,6 +176,7 @@ def test_main_view_subcommand(tmp_path, monkeypatch):
 
 
 # ── main: config subcommand routing ──────────────────────────────────────────
+
 
 def test_main_config_subcommand_routes_to_handler(monkeypatch, tmp_path):
     from unbored import cli, config
