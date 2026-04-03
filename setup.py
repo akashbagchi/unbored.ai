@@ -14,6 +14,9 @@ setup(
     author="Akash Bagchi, Akshaya Nadathur, Pranjal Padakannaya, Sachin SS",
     packages=find_packages(),
     install_requires=requirements,
+    extras_require={
+        "dev": ["pytest>=7.0", "pytest-mock>=3.0"],
+    },
     entry_points={
         "console_scripts": [
             "unbored=unbored.cli:main",
