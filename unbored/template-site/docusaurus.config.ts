@@ -42,13 +42,13 @@ const config: Config = {
         image: 'img/unbored-social-card.png',
         colorMode: {
             defaultMode: 'light',
-            disableSwitch: true,
+            disableSwitch: false,
         },
 
         navbar: {
             title: 'Onboarding Knowledge Base',
             logo: {
-                alt: 'Ghost Onboarder Logo',
+                alt: 'unbored.AI Logo',
                 src: 'img/logo.svg',
             },
             items: [
@@ -71,6 +71,7 @@ const config: Config = {
 
         prism: {
             theme: prismThemes.github,
+            darkTheme: prismThemes.vsDark,
         },
     } satisfies Preset.ThemeConfig,
 };

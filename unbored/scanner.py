@@ -464,17 +464,13 @@ def _resolve_py_like(module: str, src_file: Path, root: Path) -> Optional[Path]:
     dots = len(module) - len(module.lstrip("."))
     remainder = module[dots:]
     target_dir = src_file.parent
-    for _ in range(dots):
+    for _ in range(dots - 1):
         target_dir = target_dir.parent
     if remainder:
         parts = remainder.split(".")
         target_dir = target_dir.joinpath(*parts)
     for suffix in _PY_FILE_EXTS_TRY:
-        cand = Path(
-            str(target_dir) + suffix
-            if suffix.startswith(".")
-            else str(target_dir) + suffix
-        )
+        cand = Path(str(target_dir) + suffix)
         if cand.exists():
             return cand
     return None

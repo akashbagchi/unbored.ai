@@ -109,19 +109,15 @@ def test_build_dependency_graph_js_imports(tmp_path):
 
 
 def test_build_dependency_graph_python_imports(tmp_path):
-    # pkg/subpkg/a.py imports `.b` which resolves to pkg/b.py
-    # via the scanner's off-by-one: dots=1 goes UP from subpkg/ to pkg/
     pkg = tmp_path / "pkg"
-    subpkg = pkg / "subpkg"
-    subpkg.mkdir(parents=True)
-    (subpkg / "a.py").write_text("from .b import something\n")
+    pkg.mkdir(parents=True)
+    (pkg / "a.py").write_text("from .b import something\n")
     (pkg / "b.py").write_text("something = 1\n")
     result = build_dependency_graph(str(tmp_path))
     node_ids = {n["id"] for n in result["nodes"]}
-    assert "pkg/subpkg/a.py" in node_ids
+    assert "pkg/a.py" in node_ids
     assert "pkg/b.py" in node_ids
-    edge = {"source": "pkg/subpkg/a.py", "target": "pkg/b.py"}
-    assert edge in result["edges"]
+    assert {"source": "pkg/a.py", "target": "pkg/b.py"} in result["edges"]
 
 
 def test_build_dependency_graph_empty_repo(tmp_path):
