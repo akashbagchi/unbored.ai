@@ -37,6 +37,7 @@ Rules for content:
 - Use code references where helpful (file paths, function names)
 - Target audience is a new developer joining the team
 - If GitHub issues are provided, include a "Known Pain Points" section on the relevant page (intro.md if unsure)
+- Use NO emojis or commonly over-used AI writing patterns (e.g.: negative parallelism, dramatic countdown, tricolon abuse, etc.)
 
 Output ONLY the JSON array. No preamble, no explanation, no markdown code fences."""
 
