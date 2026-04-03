@@ -54,13 +54,16 @@ function GraphClient() {
     return `#${toHex(R)}${toHex(G)}${toHex(B)}`;
   };
 
-  const mixWithDark = (hex: string, t = 0.80) => {
+  // Mixes toward the warm dark surface (#1a1816) rather than pure black,
+  // keeping the warm stone undertone consistent with the design system.
+  const mixWithWarmDark = (hex: string, t = 0.80) => {
     const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    if (!m) return "#1a1a1a";
+    if (!m) return "#1a1816";
     const r = parseInt(m[1], 16), g = parseInt(m[2], 16), b = parseInt(m[3], 16);
-    const R = Math.round(r * (1 - t));
-    const G = Math.round(g * (1 - t));
-    const B = Math.round(b * (1 - t));
+    const baseR = 26, baseG = 24, baseB = 22; // #1a1816
+    const R = Math.round(r * (1 - t) + baseR * t);
+    const G = Math.round(g * (1 - t) + baseG * t);
+    const B = Math.round(b * (1 - t) + baseB * t);
     const toHex = (v: number) => v.toString(16).padStart(2, "0");
     return `#${toHex(R)}${toHex(G)}${toHex(B)}`;
   };
@@ -82,7 +85,7 @@ function GraphClient() {
 
       const level = getLevel(n.id);
       const stroke = colorForLevel(level);
-      const bg = isDark ? mixWithDark(stroke, 0.80) : mixWithWhite(stroke, 0.86);
+      const bg = isDark ? mixWithWarmDark(stroke, 0.80) : mixWithWhite(stroke, 0.86);
 
       return {
         id: n.id,
@@ -94,7 +97,7 @@ function GraphClient() {
           background: bg,
           border: `1.5px solid ${stroke}`,
           fontSize: 11,
-          color: isDark ? "#e8e8e8" : "#1a1a1a",
+          color: isDark ? "#f0ede8" : "#1a1a1a",
           opacity: isActive ? 1 : 0.25,
           transition: "opacity 120ms ease",
         },
@@ -120,7 +123,7 @@ function GraphClient() {
         className: touchesHover ? "edge-pulse" : "edge-dim",
         style: {
           strokeWidth: 1.2,
-          stroke: isDark ? "#4a5568" : "#98A6B3",
+          stroke: isDark ? "#5c5248" : "#98A6B3",
           opacity: touchesHover ? 0.85 : 0.1,
           transition: "opacity 120ms ease",
         },
@@ -135,8 +138,8 @@ function GraphClient() {
         width: "100%",
         borderRadius: 0,
         overflow: "hidden",
-        background: isDark ? "#111111" : "#fafafa",
-        borderTop: isDark ? "1px solid #222222" : "1px solid #e9ecef",
+        background: isDark ? "#0f0e0d" : "#fafafa",
+        borderTop: isDark ? "1px solid #2e2b27" : "1px solid #e9ecef",
         position: "relative",
       }}
     >
@@ -166,12 +169,12 @@ function GraphClient() {
         minZoom={0.2}
         maxZoom={2}
       >
-        <Background color={isDark ? "#2a2a2a" : undefined} />
+        <Background color={isDark ? "#2e2b27" : undefined} />
         <MiniMap
           pannable
           zoomable
           nodeColor={(n) => colorForLevel(getLevel(n.id))}
-          style={{ background: isDark ? "#1a1a1a" : undefined }}
+          style={{ background: isDark ? "#1a1816" : undefined }}
         />
         <Controls position="bottom-right" />
       </ReactFlow>
