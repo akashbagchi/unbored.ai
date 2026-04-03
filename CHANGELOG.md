@@ -1,3 +1,11 @@
+### 0.5.1
+
+- Features:
+  - `unbored view` subcommand -> launches the existing documentation site without running the generation pipeline or making any API calls.
+  - Change detection -> saves a git commit snapshot after each full generation run; on subsequent runs, diffs the current HEAD against the stored commit to avoid unnecessary Claude API calls..
+    - If the repo is unchanged since last generation, docs launch immediately.
+    - If only minor source changes are detected (<=20 lines), user is prompted to choose between regenerating or launching existing docs.
+
 ### 0.5.0
 
 - Features:
