@@ -268,7 +268,7 @@ def main():
             print("⚠️ Warning: Template site not found, skipping site generation")
     elif template_site.exists():
         # Sync theme files that may have changed since the site was first created
-        for rel in ["src/css/custom.css", "docusaurus.config.ts"]:
+        for rel in ["src/css/custom.css", "docusaurus.config.ts", "src/pages/graph.tsx"]:
             src = template_site / rel
             dst = site_dir / rel
             if src.exists():
