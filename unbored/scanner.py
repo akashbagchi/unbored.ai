@@ -847,7 +847,16 @@ def build_dependency_graph(root_path: str | Path) -> Dict[str, Any]:
     def _add_node(rel: Path):
         rid = rel.as_posix()
         if rid not in node_ids:
-            node_ids[rid] = {"id": rid, "label": rel.name}
+            parts = rel.parts
+            top_dir = parts[0] if len(parts) > 1 else "(root)"
+            is_test = any(p in {"test", "tests", "spec", "specs", "__tests__"} for p in parts)
+            node_ids[rid] = {
+                "id": rid,
+                "label": rel.name,
+                "lang": LANG_EXT.get(rel.suffix.lower()),
+                "dir": top_dir,
+                "is_test": is_test,
+            }
 
     for f in src_files:
         rel = f.relative_to(root)

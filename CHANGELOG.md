@@ -1,3 +1,8 @@
+### 0.6.1
+
+- Features:
+  - Improved graph view implementation for more usable information about the codebase
+
 ### 0.6.0
 
 - Features:

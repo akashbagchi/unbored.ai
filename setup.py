@@ -9,7 +9,7 @@ if req_file.exists():
 
 setup(
     name="unbored",
-    version="0.6.0",
+    version="0.6.1",
     description="One command automated onboarding documentation generator",
     author="Akash Bagchi, Akshaya Nadathur, Pranjal Padakannaya, Sachin SS",
     packages=find_packages(),

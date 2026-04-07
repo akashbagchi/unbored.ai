@@ -155,7 +155,7 @@ def generate_graph_positions(
     data = read_json(in_path)
 
     # Build graph from current JSON as-is (assuming nodes:{id}, edges:{source,target})
-    G = nx.Graph()
+    G = nx.DiGraph()
     node_ids = [n["id"] for n in data.get("nodes", [])]
     G.add_nodes_from(node_ids)
     for e in data.get("edges", []):
@@ -168,12 +168,15 @@ def generate_graph_positions(
     # --- Adaptive params ---
     k, spread, min_dist, iterations = adaptive_params(n)
 
+    # Use undirected copy for layout (greedy_modularity_communities requires undirected)
+    G_layout = G.to_undirected()
+
     # --- Choose layout strategy ---
     if n >= community_threshold:
-        pos = pack_communities(G, iterations, k)
+        pos = pack_communities(G_layout, iterations, k)
     else:
         pos = nx.spring_layout(
-            G, k=k, iterations=iterations, seed=42, center=(0.0, 0.0), dim=2
+            G_layout, k=k, iterations=iterations, seed=42, center=(0.0, 0.0), dim=2
         )
 
     # Scale out a bit
@@ -201,6 +204,11 @@ def generate_graph_positions(
                 "label": nobj.get("label", nid),
                 "x": map_range(x, minx, maxx, -WIDTH / 2, WIDTH / 2),
                 "y": map_range(y, miny, maxy, -HEIGHT / 2, HEIGHT / 2),
+                "lang": nobj.get("lang"),
+                "dir": nobj.get("dir"),
+                "is_test": nobj.get("is_test", False),
+                "in_degree": G.in_degree(nid),
+                "out_degree": G.out_degree(nid),
             }
         )
 
